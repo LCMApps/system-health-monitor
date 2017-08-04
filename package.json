@@ -1,0 +1,29 @@
+{
+  "name": "health-checker",
+  "version": "1.0.0",
+  "description": "This module implements service that check RAM and CPU characteristics and decides according to passed config that instance is overloaded",
+  "main": "index.js",
+  "scripts": {
+    "lint": "./node_modules/.bin/eslint ./",
+    "test": "NODE_ENV=test ./node_modules/.bin/mocha --opts tests/mocha.opts -R spec ./tests",
+    "test:coverage": "NODE_ENV=test ./node_modules/.bin/istanbul cover ./node_modules/.bin/_mocha --print both -- --opts tests/mocha.opts -R spec ./tests"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/LCMApps/system-health-monitor.git"
+  },
+  "license": "SEE LICENSE IN LICENSE.md",
+  "engines": {
+    "node": ">=8.1"
+  },
+  "dependencies": {
+    "lodash": "^4.17.4"
+  },
+  "devDependencies": {
+    "chai": "^4.0.2",
+    "eslint": "^4.0.0",
+    "istanbul": "^1.1.0-alpha.1",
+    "mocha": "^3.4.2",
+    "sinon": "^2.3.4"
+  }
+}
