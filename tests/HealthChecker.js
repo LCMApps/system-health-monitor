@@ -542,6 +542,114 @@ describe('HealthChecker', () => {
         assert.deepEqual(healthChecker.getHealthInfo(), expectedHealthInfo);
     });
 
+    it('HealthChecker set overload = true if mem.thresholdType = rate and _getFreeRam return -1', () => {
+        checkerConf.cpuUsage.thresholdType = 'none';
+        checkerConf.mem.thresholdType      = 'rate';
+        checkerConf.mem.highWatermark      = 0.75;
+
+        const healthChecker = new HealthChecker(checkerConf);
+
+        sinon.stub(healthChecker, '_getCpuCount');
+        sinon.stub(healthChecker, '_getTotalRam');
+        sinon.stub(healthChecker, '_getFreeRam');
+        sinon.stub(healthChecker, '_calculateCpuLoad');
+
+        healthChecker._getTotalRam.returns(2048);
+        healthChecker._getFreeRam.returns(-1);
+        healthChecker._getCpuCount.returns(4);
+        healthChecker._cpuUsageList = [100, 100, 100, 100, 100];
+
+        healthChecker._determineHealthIndicators();
+
+        const expectedHealthInfo = {
+            status: HealthChecker.HEALTH_STATUS_OVERLOAD,
+            pid:    process.pid,
+            mem:    {
+                total: 2048,
+                free:  -1
+            },
+            cpu:    {
+                usage: 100,
+                count: 4
+            }
+        };
+
+        assert.equal(healthChecker.isOverload(), true);
+        assert.deepEqual(healthChecker.getHealthInfo(), expectedHealthInfo);
+    });
+
+    it('HealthChecker set overload = true if mem.thresholdType = rate and _getFreeRam and _getTotalRam return -1', () => {
+        checkerConf.cpuUsage.thresholdType = 'none';
+        checkerConf.mem.thresholdType      = 'rate';
+        checkerConf.mem.highWatermark      = 0.75;
+
+        const healthChecker = new HealthChecker(checkerConf);
+
+        sinon.stub(healthChecker, '_getCpuCount');
+        sinon.stub(healthChecker, '_getTotalRam');
+        sinon.stub(healthChecker, '_getFreeRam');
+        sinon.stub(healthChecker, '_calculateCpuLoad');
+
+        healthChecker._getTotalRam.returns(-1);
+        healthChecker._getFreeRam.returns(-1);
+        healthChecker._getCpuCount.returns(4);
+        healthChecker._cpuUsageList = [100, 100, 100, 100, 100];
+
+        healthChecker._determineHealthIndicators();
+
+        const expectedHealthInfo = {
+            status: HealthChecker.HEALTH_STATUS_OVERLOAD,
+            pid:    process.pid,
+            mem:    {
+                total: -1,
+                free:  -1
+            },
+            cpu:    {
+                usage: 100,
+                count: 4
+            }
+        };
+
+        assert.equal(healthChecker.isOverload(), true);
+        assert.deepEqual(healthChecker.getHealthInfo(), expectedHealthInfo);
+    });
+
+    it('HealthChecker set overload = true if mem.thresholdType = rate and _getFreeRam and _getTotalRam return -1', () => {
+        checkerConf.cpuUsage.thresholdType = 'none';
+        checkerConf.mem.thresholdType      = 'fixed';
+        checkerConf.mem.maxFixed           = 1500;
+
+        const healthChecker = new HealthChecker(checkerConf);
+
+        sinon.stub(healthChecker, '_getCpuCount');
+        sinon.stub(healthChecker, '_getTotalRam');
+        sinon.stub(healthChecker, '_getFreeRam');
+        sinon.stub(healthChecker, '_calculateCpuLoad');
+
+        healthChecker._getTotalRam.returns(-1);
+        healthChecker._getFreeRam.returns(-1);
+        healthChecker._getCpuCount.returns(4);
+        healthChecker._cpuUsageList = [100, 100, 100, 100, 100];
+
+        healthChecker._determineHealthIndicators();
+
+        const expectedHealthInfo = {
+            status: HealthChecker.HEALTH_STATUS_OVERLOAD,
+            pid:    process.pid,
+            mem:    {
+                total: -1,
+                free:  -1
+            },
+            cpu:    {
+                usage: 100,
+                count: 4
+            }
+        };
+
+        assert.equal(healthChecker.isOverload(), true);
+        assert.deepEqual(healthChecker.getHealthInfo(), expectedHealthInfo);
+    });
+
     it('HealthChecker set overload = false if mem and cpu indicators are lower max values', () => {
         checkerConf.cpuUsage.thresholdType = 'multiplier';
         checkerConf.cpuUsage.maxFixed      = 75;

@@ -111,12 +111,14 @@ class HealthChecker {
 
         switch (this._memThresholdType) {
             case 'fixed': {
-                memOverload = this._memTotal - this._memFree >= this._memMaxFixed;
+                const memUsed = Math.abs(this._memTotal - this._memFree);
+                memOverload = !(memUsed && (memUsed < this._memMaxFixed));
                 break;
             }
 
             case 'rate': {
-                memOverload = (this._memTotal - this._memFree) / this._memTotal >= this._memHighWatermark;
+                const memUsed = Math.abs(this._memTotal - this._memFree);
+                memOverload = !(memUsed && (memUsed / this._memTotal < this._memHighWatermark));
                 break;
             }
         }
