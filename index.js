@@ -13,11 +13,11 @@ class HealthChecker {
     }
 
     static get HEALTH_STATUS_OK() {
-        return 'OK';
+        return 1;
     }
 
     static get HEALTH_STATUS_OVERLOAD() {
-        return 'OVERLOAD';
+        return 2;
     }
 
     constructor(config) {
