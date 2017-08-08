@@ -1,7 +1,6 @@
 'use strict';
 
 const os = require('os');
-const _  = require('lodash');
 
 class HealthChecker {
     static get STATUS_STOPPED() {
@@ -112,13 +111,13 @@ class HealthChecker {
         switch (this._memThresholdType) {
             case 'fixed': {
                 const memUsed = Math.abs(this._memTotal - this._memFree);
-                memOverload = !(memUsed && (memUsed < this._memMaxFixed));
+                memOverload   = !(memUsed && (memUsed < this._memMaxFixed));
                 break;
             }
 
             case 'rate': {
                 const memUsed = Math.abs(this._memTotal - this._memFree);
-                memOverload = !(memUsed && (memUsed / this._memTotal < this._memHighWatermark));
+                memOverload   = !(memUsed && (memUsed / this._memTotal < this._memHighWatermark));
                 break;
             }
         }
@@ -190,29 +189,23 @@ class HealthChecker {
     }
 }
 
-function checkConfig(config) {
-    if (!_.isObject(config) || _.isFunction(config) || _.isArray(config)) {
-        throw new Error('config must be an object');
-    }
-
-    if (config.checkInterval !== undefined && (!Number.isSafeInteger(config.checkInterval) ||
-        config.checkInterval < 1)) {
+function checkConfig({checkInterval, mem, cpuUsage}) {
+    if (checkInterval !== undefined && (!Number.isSafeInteger(checkInterval) || checkInterval < 1)) {
         throw new Error('checkInterval must be integer and more then 1');
     }
 
-    if (!_.isObject(config.mem) || !_.isObject(config.cpuUsage)) {
+    if (typeof mem !== 'object' || typeof cpuUsage !== 'object') {
         throw new Error('fields `mem` and `cpuUsage` is required and type of object');
     }
 
-    if (config.mem.thresholdType !== 'none') {
-        if (config.mem.thresholdType === 'fixed') {
-            if (config.mem.maxFixed === undefined || !Number.isFinite(config.mem.maxFixed) ||
-                config.mem.maxFixed <= 0) {
+    if (mem.thresholdType !== 'none') {
+        if (mem.thresholdType === 'fixed') {
+            if (mem.maxFixed === undefined || !Number.isFinite(mem.maxFixed) || mem.maxFixed <= 0) {
                 throw new Error('mem.maxFixed fields is required for threshold = fixed and must be more then 0');
             }
-        } else if (config.mem.thresholdType === 'rate') {
-            if (config.mem.highWatermark === undefined || !Number.isFinite(config.mem.highWatermark) ||
-                config.mem.highWatermark <= 0 || config.mem.highWatermark >= 1) {
+        } else if (mem.thresholdType === 'rate') {
+            if (mem.highWatermark === undefined || !Number.isFinite(mem.highWatermark) ||
+                mem.highWatermark <= 0 || mem.highWatermark >= 1) {
 
                 throw new Error('mem.highWatermark fields is required for threshold = rate and must be in range (0;1)');
             }
@@ -221,10 +214,10 @@ function checkConfig(config) {
         }
     }
 
-    if (config.cpuUsage.thresholdType !== 'none') {
-        if (config.cpuUsage.thresholdType === 'multiplier') {
-            if (config.cpuUsage.maxFixed === undefined || !Number.isFinite(config.cpuUsage.maxFixed) ||
-                config.cpuUsage.maxFixed <= 0 || config.cpuUsage.maxFixed > 100) {
+    if (cpuUsage.thresholdType !== 'none') {
+        if (cpuUsage.thresholdType === 'multiplier') {
+            if (cpuUsage.maxFixed === undefined || !Number.isFinite(cpuUsage.maxFixed) ||
+                cpuUsage.maxFixed <= 0 || cpuUsage.maxFixed > 100) {
                 throw new Error('cpuUsage.maxFixed fields is required for threshold = multiplier and ' +
                     'must be in range (0;100]');
             }

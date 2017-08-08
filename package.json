@@ -16,9 +16,6 @@
   "engines": {
     "node": ">=8.1"
   },
-  "dependencies": {
-    "lodash": "^4.17.4"
-  },
   "devDependencies": {
     "chai": "^4.0.2",
     "eslint": "^4.0.0",
