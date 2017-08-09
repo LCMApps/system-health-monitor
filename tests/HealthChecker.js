@@ -32,7 +32,7 @@ describe('HealthChecker', () => {
                     new HealthChecker(config);
                 } catch (err) {
                     assert.instanceOf(err, Error);
-                    assert.equal(err.message, 'checkInterval must be integer and more then 1');
+                    assert.equal(err.message, 'checkInterval must be integer and more than 1');
                 }
             });
         });
@@ -48,7 +48,7 @@ describe('HealthChecker', () => {
                     new HealthChecker(config);
                 } catch (err) {
                     assert.instanceOf(err, Error);
-                    assert.equal(err.message, 'fields `mem` and `cpu` is required and type of object');
+                    assert.equal(err.message, 'fields `mem` and `cpu` is required and must be an object');
                 }
             });
         });
@@ -64,7 +64,7 @@ describe('HealthChecker', () => {
                     new HealthChecker(config);
                 } catch (err) {
                     assert.instanceOf(err, Error);
-                    assert.equal(err.message, 'fields `mem` and `cpu` is required and type of object');
+                    assert.equal(err.message, 'fields `mem` and `cpu` is required and must be an object');
                 }
             });
         });
@@ -104,7 +104,7 @@ describe('HealthChecker', () => {
                     new HealthChecker(config);
                 } catch (err) {
                     assert.instanceOf(err, Error);
-                    assert.equal(err.message, 'mem.maxFixed fields is required for threshold = fixed and must be more then 0');
+                    assert.equal(err.message, 'mem.maxFixed fields is required for threshold = fixed and must be more than 0');
                 }
             });
         });
@@ -126,7 +126,7 @@ describe('HealthChecker', () => {
                     new HealthChecker(config);
                 } catch (err) {
                     assert.instanceOf(err, Error);
-                    assert.equal(err.message, 'mem.highWatermark fields is required for threshold = rate and must be in range (0;1)');
+                    assert.equal(err.message, 'mem.highWatermark fields is required for threshold = rate and must be in range (0,1]');
                 }
             });
         });
@@ -137,7 +137,10 @@ describe('HealthChecker', () => {
             it('invalid cpu.thresholdType', () => {
                 const config = {
                     mem: {thresholdType: 'none'},
-                    cpu: {thresholdType: arg}
+                    cpu: {
+                        thresholdType: arg,
+                        loadListLength: 5
+                    }
                 };
 
                 try {
@@ -160,7 +163,9 @@ describe('HealthChecker', () => {
                     },
                     cpu: {
                         thresholdType: 'rate',
-                        maxFixed:      arg
+                        maxFixed:      arg,
+                        loadListLength: 5
+
                     }
                 };
 
@@ -168,7 +173,7 @@ describe('HealthChecker', () => {
                     new HealthChecker(config);
                 } catch (err) {
                     assert.instanceOf(err, Error);
-                    assert.equal(err.message, 'cpu.highWatermark fields is required for threshold = rate and must be in range (0;100]');
+                    assert.equal(err.message, 'cpu.highWatermark fields is required for threshold = rate and must be in range (0,1]');
                 }
             });
         });
@@ -193,7 +198,7 @@ describe('HealthChecker', () => {
                     new HealthChecker(config);
                 } catch (err) {
                     assert.instanceOf(err, Error);
-                    assert.equal(err.message, 'cpu.loadListLength fields is required for threshold = rate and must be more then 0');
+                    assert.equal(err.message, 'cpu.loadListLength fields is required for threshold = rate and must be more than 0');
                 }
             });
         });
@@ -311,7 +316,7 @@ describe('HealthChecker', () => {
         assert.equal(healthChecker._cpuUsageList.length, 2);
         assert.equal(healthChecker._cpuUsageList[1], expectedCpuLoad);
         assert.equal(healthChecker.isOverloaded(), true);
-        assert.equal(healthChecker.getCpuUsage(), 100);
+        assert.equal(healthChecker.getCpuUsage(), 1);
         assert.equal(healthChecker.getCpuCount(), -1);
     });
 
@@ -319,24 +324,24 @@ describe('HealthChecker', () => {
         const healthChecker = new HealthChecker(checkerConf);
 
         sinon.stub(healthChecker, '_getCpuInfo');
-        sinon.stub(healthChecker, 'getCpuCount');
-        sinon.stub(healthChecker, 'getMemTotal');
-        sinon.stub(healthChecker, 'getMemFree');
+        sinon.stub(healthChecker, '_getCpuCount');
+        sinon.stub(healthChecker, '_getTotalMem');
+        sinon.stub(healthChecker, '_getFreeMem');
         sinon.stub(healthChecker, '_calculateCpuLoad');
 
-        healthChecker.getMemTotal.returns(2048);
-        healthChecker.getMemFree.returns(10);
-        healthChecker.getCpuCount.returns(4);
+        healthChecker._getTotalMem.returns(2048);
+        healthChecker._getFreeMem.returns(10);
+        healthChecker._getCpuCount.returns(4);
         healthChecker._cpuUsageList = [100, 100, 100, 100, 100];
 
         healthChecker._determineHealthIndicators();
 
         assert.isOk(healthChecker._getCpuInfo.calledOnce);
-        assert.isOk(healthChecker.getMemTotal.calledOnce);
-        assert.isOk(healthChecker.getMemFree.calledOnce);
+        assert.isOk(healthChecker._getTotalMem.calledOnce);
+        assert.isOk(healthChecker._getFreeMem.calledOnce);
         assert.isOk(healthChecker._calculateCpuLoad.calledOnce);
         assert.equal(healthChecker.isOverloaded(), false);
-        assert.equal(healthChecker.getCpuUsage(), 100);
+        assert.equal(healthChecker.getCpuUsage(), 1);
         assert.equal(healthChecker.getCpuCount(), 4);
     });
 
@@ -347,22 +352,22 @@ describe('HealthChecker', () => {
 
         sinon.stub(healthChecker, '_getCpuInfo');
         sinon.stub(healthChecker, 'getCpuCount');
-        sinon.stub(healthChecker, 'getMemTotal');
-        sinon.stub(healthChecker, 'getMemFree');
+        sinon.stub(healthChecker, '_getTotalMem');
+        sinon.stub(healthChecker, '_getFreeMem');
         sinon.stub(healthChecker, '_calculateCpuLoad');
 
-        healthChecker.getMemTotal.returns(2048);
-        healthChecker.getMemFree.returns(10);
+        healthChecker._getTotalMem.returns(2048);
+        healthChecker._getFreeMem.returns(10);
         healthChecker.getCpuCount.returns(4);
         healthChecker._cpuUsageList = [100, 75, 75, 75, 75];
 
         healthChecker._determineHealthIndicators();
 
-        const expectedCpuUsage = 80;
+        const expectedCpuUsage = 0.8;
 
         assert.isOk(healthChecker._getCpuInfo.calledOnce);
-        assert.isOk(healthChecker.getMemTotal.calledOnce);
-        assert.isOk(healthChecker.getMemFree.calledOnce);
+        assert.isOk(healthChecker._getTotalMem.calledOnce);
+        assert.isOk(healthChecker._getFreeMem.calledOnce);
         assert.isOk(healthChecker._calculateCpuLoad.calledOnce);
         assert.equal(healthChecker.isOverloaded(), true);
         assert.equal(healthChecker.getCpuUsage(), expectedCpuUsage);
@@ -374,19 +379,19 @@ describe('HealthChecker', () => {
 
         const healthChecker = new HealthChecker(checkerConf);
 
-        sinon.stub(healthChecker, 'getCpuCount');
-        sinon.stub(healthChecker, 'getMemTotal');
-        sinon.stub(healthChecker, 'getMemFree');
+        sinon.stub(healthChecker, '_getCpuCount');
+        sinon.stub(healthChecker, '_getTotalMem');
+        sinon.stub(healthChecker, '_getFreeMem');
         sinon.stub(healthChecker, '_calculateCpuLoad');
 
-        healthChecker.getMemTotal.returns(2048);
-        healthChecker.getMemFree.returns(10);
-        healthChecker.getCpuCount.returns(4);
+        healthChecker._getTotalMem.returns(2048);
+        healthChecker._getFreeMem.returns(10);
+        healthChecker._getCpuCount.returns(4);
         healthChecker._cpuUsageList = [100, 50, 40, 40, 30];
 
         healthChecker._determineHealthIndicators();
 
-        const expectedCpuUsage = 52;
+        const expectedCpuUsage = 0.52;
 
         assert.equal(healthChecker.isOverloaded(), false);
         assert.equal(healthChecker.getCpuUsage(), expectedCpuUsage);
@@ -400,19 +405,21 @@ describe('HealthChecker', () => {
 
         const healthChecker = new HealthChecker(checkerConf);
 
-        sinon.stub(healthChecker, 'getCpuCount');
-        sinon.stub(healthChecker, 'getMemTotal');
-        sinon.stub(healthChecker, 'getMemFree');
+        sinon.stub(healthChecker, '_getCpuCount');
+        sinon.stub(healthChecker, '_getTotalMem');
+        sinon.stub(healthChecker, '_getFreeMem');
         sinon.stub(healthChecker, '_calculateCpuLoad');
 
-        healthChecker.getMemTotal.returns(2048);
-        healthChecker.getMemFree.returns(1000);
-        healthChecker.getCpuCount.returns(4);
+        healthChecker._getTotalMem.returns(2048);
+        healthChecker._getFreeMem.returns(1000);
+        healthChecker._getCpuCount.returns(4);
         healthChecker._cpuUsageList = [100, 100, 100, 100, 100];
 
         healthChecker._determineHealthIndicators();
 
         assert.equal(healthChecker.isOverloaded(), false);
+        assert.equal(healthChecker.getMemFree(), 1000);
+        assert.equal(healthChecker.getMemTotal(), 2048);
     });
 
     it('HealthChecker set overload = true if mem.thresholdType = fixed and RAM usage higher maxFixed', () => {
@@ -422,19 +429,21 @@ describe('HealthChecker', () => {
 
         const healthChecker = new HealthChecker(checkerConf);
 
-        sinon.stub(healthChecker, 'getCpuCount');
-        sinon.stub(healthChecker, 'getMemTotal');
-        sinon.stub(healthChecker, 'getMemFree');
+        sinon.stub(healthChecker, '_getCpuCount');
+        sinon.stub(healthChecker, '_getTotalMem');
+        sinon.stub(healthChecker, '_getFreeMem');
         sinon.stub(healthChecker, '_calculateCpuLoad');
 
-        healthChecker.getMemTotal.returns(2048);
-        healthChecker.getMemFree.returns(100);
-        healthChecker.getCpuCount.returns(4);
+        healthChecker._getTotalMem.returns(2048);
+        healthChecker._getFreeMem.returns(100);
+        healthChecker._getCpuCount.returns(4);
         healthChecker._cpuUsageList = [100, 100, 100, 100, 100];
 
         healthChecker._determineHealthIndicators();
 
         assert.equal(healthChecker.isOverloaded(), true);
+        assert.equal(healthChecker.getMemFree(), 100);
+        assert.equal(healthChecker.getMemTotal(), 2048);
     });
 
     it('HealthChecker set overload = false if mem.thresholdType = rate and RAM usage lower highWatermark', () => {
@@ -444,19 +453,21 @@ describe('HealthChecker', () => {
 
         const healthChecker = new HealthChecker(checkerConf);
 
-        sinon.stub(healthChecker, 'getCpuCount');
-        sinon.stub(healthChecker, 'getMemTotal');
-        sinon.stub(healthChecker, 'getMemFree');
+        sinon.stub(healthChecker, '_getCpuCount');
+        sinon.stub(healthChecker, '_getTotalMem');
+        sinon.stub(healthChecker, '_getFreeMem');
         sinon.stub(healthChecker, '_calculateCpuLoad');
 
-        healthChecker.getMemTotal.returns(2048);
-        healthChecker.getMemFree.returns(1000);
-        healthChecker.getCpuCount.returns(4);
+        healthChecker._getTotalMem.returns(2048);
+        healthChecker._getFreeMem.returns(1000);
+        healthChecker._getCpuCount.returns(4);
         healthChecker._cpuUsageList = [100, 100, 100, 100, 100];
 
         healthChecker._determineHealthIndicators();
 
         assert.equal(healthChecker.isOverloaded(), false);
+        assert.equal(healthChecker.getMemFree(), 1000);
+        assert.equal(healthChecker.getMemTotal(), 2048);
     });
 
     it('HealthChecker set overload = true if mem.thresholdType = rate and RAM usage higher highWatermark', () => {
@@ -466,22 +477,24 @@ describe('HealthChecker', () => {
 
         const healthChecker = new HealthChecker(checkerConf);
 
-        sinon.stub(healthChecker, 'getCpuCount');
-        sinon.stub(healthChecker, 'getMemTotal');
-        sinon.stub(healthChecker, 'getMemFree');
+        sinon.stub(healthChecker, '_getCpuCount');
+        sinon.stub(healthChecker, '_getTotalMem');
+        sinon.stub(healthChecker, '_getFreeMem');
         sinon.stub(healthChecker, '_calculateCpuLoad');
 
-        healthChecker.getMemTotal.returns(2048);
-        healthChecker.getMemFree.returns(400);
-        healthChecker.getCpuCount.returns(4);
+        healthChecker._getTotalMem.returns(2048);
+        healthChecker._getFreeMem.returns(400);
+        healthChecker._getCpuCount.returns(4);
         healthChecker._cpuUsageList = [100, 100, 100, 100, 100];
 
         healthChecker._determineHealthIndicators();
 
         assert.equal(healthChecker.isOverloaded(), true);
+        assert.equal(healthChecker.getMemFree(), 400);
+        assert.equal(healthChecker.getMemTotal(), 2048);
     });
 
-    it('HealthChecker set overload = true if mem.thresholdType = rate and getMemFree return -1', () => {
+    it('HealthChecker set overload = true if mem.thresholdType = rate and _getFreeMem return -1', () => {
         checkerConf.cpu.thresholdType = 'none';
         checkerConf.mem.thresholdType = 'rate';
         checkerConf.mem.highWatermark = 0.75;
@@ -489,62 +502,68 @@ describe('HealthChecker', () => {
         const healthChecker = new HealthChecker(checkerConf);
 
         sinon.stub(healthChecker, 'getCpuCount');
-        sinon.stub(healthChecker, 'getMemTotal');
-        sinon.stub(healthChecker, 'getMemFree');
+        sinon.stub(healthChecker, '_getTotalMem');
+        sinon.stub(healthChecker, '_getFreeMem');
         sinon.stub(healthChecker, '_calculateCpuLoad');
 
-        healthChecker.getMemTotal.returns(2048);
-        healthChecker.getMemFree.returns(-1);
+        healthChecker._getTotalMem.returns(2048);
+        healthChecker._getFreeMem.returns(-1);
         healthChecker.getCpuCount.returns(4);
         healthChecker._cpuUsageList = [100, 100, 100, 100, 100];
 
         healthChecker._determineHealthIndicators();
 
         assert.equal(healthChecker.isOverloaded(), true);
+        assert.equal(healthChecker.getMemFree(), -1);
+        assert.equal(healthChecker.getMemTotal(), 2048);
     });
 
-    it('HealthChecker set overload = true if mem.thresholdType = rate and getMemFree and getMemTotal return -1', () => {
+    it('HealthChecker set overload = true if mem.thresholdType = rate and _getFreeMem and _getTotalMem return -1', () => {
         checkerConf.cpu.thresholdType = 'none';
         checkerConf.mem.thresholdType = 'rate';
         checkerConf.mem.highWatermark = 0.75;
 
         const healthChecker = new HealthChecker(checkerConf);
 
-        sinon.stub(healthChecker, 'getCpuCount');
-        sinon.stub(healthChecker, 'getMemTotal');
-        sinon.stub(healthChecker, 'getMemFree');
+        sinon.stub(healthChecker, '_getCpuCount');
+        sinon.stub(healthChecker, '_getTotalMem');
+        sinon.stub(healthChecker, '_getFreeMem');
         sinon.stub(healthChecker, '_calculateCpuLoad');
 
-        healthChecker.getMemTotal.returns(-1);
-        healthChecker.getMemFree.returns(-1);
-        healthChecker.getCpuCount.returns(4);
+        healthChecker._getTotalMem.returns(-1);
+        healthChecker._getFreeMem.returns(-1);
+        healthChecker._getCpuCount.returns(4);
         healthChecker._cpuUsageList = [100, 100, 100, 100, 100];
 
         healthChecker._determineHealthIndicators();
 
         assert.equal(healthChecker.isOverloaded(), true);
+        assert.equal(healthChecker.getMemFree(), -1);
+        assert.equal(healthChecker.getMemTotal(), -1);
     });
 
-    it('HealthChecker set overload = true if mem.thresholdType = rate and getMemFree and getMemTotal return -1', () => {
+    it('HealthChecker set overload = true if mem.thresholdType = fixed and _getFreeMem and _getTotalMem return -1', () => {
         checkerConf.cpu.thresholdType = 'none';
         checkerConf.mem.thresholdType = 'fixed';
         checkerConf.mem.maxFixed      = 1500;
 
         const healthChecker = new HealthChecker(checkerConf);
 
-        sinon.stub(healthChecker, 'getCpuCount');
-        sinon.stub(healthChecker, 'getMemTotal');
-        sinon.stub(healthChecker, 'getMemFree');
+        sinon.stub(healthChecker, '_getCpuCount');
+        sinon.stub(healthChecker, '_getTotalMem');
+        sinon.stub(healthChecker, '_getFreeMem');
         sinon.stub(healthChecker, '_calculateCpuLoad');
 
-        healthChecker.getMemTotal.returns(-1);
-        healthChecker.getMemFree.returns(-1);
-        healthChecker.getCpuCount.returns(4);
+        healthChecker._getTotalMem.returns(-1);
+        healthChecker._getFreeMem.returns(-1);
+        healthChecker._getCpuCount.returns(4);
         healthChecker._cpuUsageList = [100, 100, 100, 100, 100];
 
         healthChecker._determineHealthIndicators();
 
         assert.equal(healthChecker.isOverloaded(), true);
+        assert.equal(healthChecker.getMemFree(), -1);
+        assert.equal(healthChecker.getMemTotal(), -1);
     });
 
     it('HealthChecker set overload = false if mem and cpu indicators are lower max values', () => {
@@ -555,19 +574,23 @@ describe('HealthChecker', () => {
 
         const healthChecker = new HealthChecker(checkerConf);
 
-        sinon.stub(healthChecker, 'getCpuCount');
-        sinon.stub(healthChecker, 'getMemTotal');
-        sinon.stub(healthChecker, 'getMemFree');
+        sinon.stub(healthChecker, '_getCpuCount');
+        sinon.stub(healthChecker, '_getTotalMem');
+        sinon.stub(healthChecker, '_getFreeMem');
         sinon.stub(healthChecker, '_calculateCpuLoad');
 
-        healthChecker.getMemTotal.returns(2048);
-        healthChecker.getMemFree.returns(700);
-        healthChecker.getCpuCount.returns(4);
+        healthChecker._getTotalMem.returns(2048);
+        healthChecker._getFreeMem.returns(700);
+        healthChecker._getCpuCount.returns(4);
         healthChecker._cpuUsageList = [100, 50, 60, 30, 60];
 
         healthChecker._determineHealthIndicators();
 
         assert.equal(healthChecker.isOverloaded(), false);
+        assert.equal(healthChecker.getMemFree(), 700);
+        assert.equal(healthChecker.getMemTotal(), 2048);
+        assert.equal(healthChecker.getCpuCount(), 4);
+        assert.equal(healthChecker.getCpuUsage(), 0.6);
     });
 
     it('HealthChecker set overload = true if mem and cpu indicators are higher max values', () => {
@@ -578,18 +601,22 @@ describe('HealthChecker', () => {
         const healthChecker = new HealthChecker(checkerConf);
 
         sinon.stub(healthChecker, 'getCpuCount');
-        sinon.stub(healthChecker, 'getMemTotal');
-        sinon.stub(healthChecker, 'getMemFree');
+        sinon.stub(healthChecker, '_getTotalMem');
+        sinon.stub(healthChecker, '_getFreeMem');
         sinon.stub(healthChecker, '_calculateCpuLoad');
 
-        healthChecker.getMemTotal.returns(2048);
-        healthChecker.getMemFree.returns(300);
+        healthChecker._getTotalMem.returns(2048);
+        healthChecker._getFreeMem.returns(300);
         healthChecker.getCpuCount.returns(4);
         healthChecker._cpuUsageList = [100, 80, 60, 90, 70];
 
         healthChecker._determineHealthIndicators();
 
         assert.equal(healthChecker.isOverloaded(), true);
+        assert.equal(healthChecker.getMemFree(), 300);
+        assert.equal(healthChecker.getMemTotal(), 2048);
+        assert.equal(healthChecker.getCpuCount(), 4);
+        assert.equal(healthChecker.getCpuUsage(), 0.8);
     });
 
     it('HealthChecker start scheduler', () => {

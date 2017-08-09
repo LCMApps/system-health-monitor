@@ -61,22 +61,42 @@ class HealthChecker {
     }
 
     getMemTotal() {
+        if (this._status === HealthChecker.STATUS_STOPPED) {
+            throw new Error('HealthChecker service is not started');
+        }
+
         return this._memTotal;
     }
 
     getMemFree() {
+        if (this._status === HealthChecker.STATUS_STOPPED) {
+            throw new Error('HealthChecker service is not started');
+        }
+
         return this._memFree;
     }
 
     getCpuCount() {
+        if (this._status === HealthChecker.STATUS_STOPPED) {
+            throw new Error('HealthChecker service is not started');
+        }
+
         return this._cpuCount;
     }
 
     getCpuUsage() {
+        if (this._status === HealthChecker.STATUS_STOPPED) {
+            throw new Error('HealthChecker service is not started');
+        }
+
         return this._cpuUsage;
     }
 
     isOverloaded() {
+        if (this._status === HealthChecker.STATUS_STOPPED) {
+            throw new Error('HealthChecker service is not started');
+        }
+
         return this._isOverload;
     }
 
