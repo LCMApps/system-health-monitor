@@ -2,6 +2,9 @@
 
 const os = require('os');
 
+const CpuUsage    = require('./lib/CpuUsage');
+const CpuUsageSma = require('./lib/CpuUsageSma');
+
 class HealthChecker {
     static get STATUS_STOPPED() {
         return 1;
@@ -11,32 +14,29 @@ class HealthChecker {
         return 2;
     }
 
-    constructor(config) {
-        checkConfig(config);
+    constructor({checkInterval, mem, cpu}) {
+        if (!Number.isSafeInteger(checkInterval) || checkInterval < 1) {
+            throw new Error('field `checkInterval` is required must be an integer and more than 1');
+        }
+
+        this._checkInterval = checkInterval;
+
+        this._isMemOverloaded    = undefined;
+        this._isCpuOverloaded    = undefined;
+        this._cpuUsageCalculator = undefined;
+
+        this._initMemChecks(mem);
+        this._initCpuChecks(cpu);
 
         this._status = HealthChecker.STATUS_STOPPED;
 
-        this._memThresholdType = config.mem.thresholdType;
-        this._memMaxFixed      = config.mem.maxFixed;
-        this._memHighWatermark = config.mem.highWatermark;
+        this._memTotal   = -1;
+        this._memFree    = -1;
+        this._cpuCount   = -1;
+        this._cpuUsage   = 100;
+        this._isOverload = true;
 
-        this._cpuThresholdType = config.cpu.thresholdType;
-        this._cpuHighWatermark = config.cpu.highWatermark;
-
-        this._loadListLength = config.cpu.loadListLength;
-        this._checkInterval  = config.checkInterval || 15000; // ms
-
-        this._memTotal = -1;
-        this._memFree  = -1;
-        this._cpuCount = -1;
-        this._cpuUsage = 100;
-        this._cpusList = undefined;
-
-        this._isOverload   = true;
-
-        this._cpuUsageList = [];
-        this._prevWorkTime = 0;
-        this._prevBusyTime = 0;
+        this._determineHealthIndicators = this._determineHealthIndicators.bind(this);
     }
 
     start() {
@@ -60,30 +60,16 @@ class HealthChecker {
         this._status = HealthChecker.STATUS_STOPPED;
     }
 
-    /* istanbul ignore next */
     getMemTotal() {
-        try {
-            return Math.round(os.totalmem() / 1024);
-        } catch (err) {
-            return -1;
-        }
+        return this._memTotal;
     }
 
-    /* istanbul ignore next */
     getMemFree() {
-        try {
-            return Math.round(os.freemem() / 1024);
-        } catch (err) {
-            return -1;
-        }
+        return this._memFree;
     }
 
     getCpuCount() {
-        try {
-            return this._cpusList.length;
-        } catch (err) {
-            return -1;
-        }
+        return this._cpuCount;
     }
 
     getCpuUsage() {
@@ -94,43 +80,22 @@ class HealthChecker {
         return this._isOverload;
     }
 
-    _determineHealthIndicators() {
-        let memOverload = false;
-        let cpuOverload = false;
-
-        this._cpusList = this._getCpuInfo();
-        this._memTotal = this.getMemTotal();
-        this._memFree  = this.getMemFree();
-
-        this._calculateCpuLoad();
-
-        if (this._cpuUsageList.length === this._loadListLength) {
-            this._cpuUsage = this._cpuUsageList.reduce((sum, load) => {
-                return sum += load / this._loadListLength;
-            }, 0);
-        } else {
-            this._cpuUsage = 100;
+    /* istanbul ignore next */
+    _getTotalMem() {
+        try {
+            return Math.floor(os.totalmem() / 1048576); // 1048576 = 1024^2
+        } catch (err) {
+            return -1;
         }
+    }
 
-        switch (this._memThresholdType) {
-            case 'fixed': {
-                const memUsed = Math.abs(this._memTotal - this._memFree);
-                memOverload   = !(memUsed && (memUsed < this._memMaxFixed));
-                break;
-            }
-
-            case 'rate': {
-                const memUsed = Math.abs(this._memTotal - this._memFree);
-                memOverload   = !(memUsed && (memUsed / this._memTotal < this._memHighWatermark));
-                break;
-            }
+    /* istanbul ignore next */
+    _getFreeMem() {
+        try {
+            return Math.ceil(os.freemem() / 1048576);
+        } catch (err) {
+            return -1;
         }
-
-        if (this._cpuThresholdType === 'rate') {
-            cpuOverload = this._cpuUsage > this._cpuHighWatermark;
-        }
-
-        this._isOverload = memOverload || cpuOverload;
     }
 
     /* istanbul ignore next */
@@ -142,70 +107,105 @@ class HealthChecker {
         }
     }
 
-    _calculateCpuLoad() {
-        let load            = 100;
-        let currentBusyTime = 0;
-        let currentWorkTime = 0;
+    /* istanbul ignore next */
+    _getCpuCount() {
+        try {
+            return this._cpusList.length;
+        } catch (err) {
+            return -1;
+        }
+    }
 
-        if (Array.isArray(this._cpusList)) {
-            this._cpusList.forEach(core => {
-                currentBusyTime += core.times.user + core.times.nice + core.times.sys + core.times.irq;
-                currentWorkTime += core.times.idle;
-            });
+    _determineHealthIndicators() {
+        this._memTotal = this._getTotalMem();
+        this._memFree  = this._getFreeMem();
 
-            currentWorkTime += currentBusyTime;
+        const memOverload = this._isMemOverloaded(this._memFree, this._memTotal);
 
-            load = 100 * (currentBusyTime - this._prevBusyTime) / (currentWorkTime - this._prevWorkTime);
+        this._cpusList = this._getCpuInfo();
+
+        if (this._cpusList === undefined) {
+            this._cpuCount = -1;
+            this._cpuUsage = 100;
+        } else {
+            this._cpuCount = this._getCpuCount();
+            this._cpuUsage = this._cpuUsageCalculator.calculate(this._cpusList);
         }
 
-        this._prevWorkTime = currentWorkTime;
-        this._prevBusyTime = currentBusyTime;
+        const cpuOverload = this._isCpuOverloaded(this._cpuUsage);
 
-        if (this._cpuUsageList.length === this._loadListLength) {
-            this._cpuUsageList.shift();
+        this._isOverload = memOverload || cpuOverload;
+
+        console.log(this._memTotal, this._memFree, this._cpuCount, this._cpuUsage, this._isOverload);
+
+    }
+
+    _isMemOverloadedByIncorrectData(free, total) {
+        return free < 0 || total < 0;
+    }
+
+    _isMemOverloadedByFixedThreshold(minFree, free, total) {
+        return this._isMemOverloadedByIncorrectData(free, total) || free < minFree;
+    }
+
+    _isMemOverloadedByRateThreshold(highWatermark, free, total) {
+        return this._isMemOverloadedByIncorrectData(free, total) || (total - free) / total > highWatermark;
+    }
+
+    _isCpuOverloadByRateThreshold(highWatermark, cpuUsage) {
+        return highWatermark * 100 < cpuUsage;
+    }
+
+    _initMemChecks(mem) {
+        if (typeof mem !== 'object') {
+            throw new Error('field `mem` is required and must be an object');
         }
 
-        this._cpuUsageList.push(load);
-    }
-}
-
-function checkConfig({checkInterval, mem, cpu}) {
-    if (checkInterval !== undefined && (!Number.isSafeInteger(checkInterval) || checkInterval < 1)) {
-        throw new Error('checkInterval must be integer and more then 1');
-    }
-
-    if (typeof mem !== 'object' || typeof cpu !== 'object') {
-        throw new Error('fields `mem` and `cpu` is required and type of object');
-    }
-
-    if (mem.thresholdType !== 'none') {
         if (mem.thresholdType === 'fixed') {
-            if (mem.maxFixed === undefined || !Number.isSafeInteger(mem.maxFixed) || mem.maxFixed <= 0) {
-                throw new Error('mem.maxFixed fields is required for threshold = fixed and must be more then 0');
+            if (mem.minFree === undefined || !Number.isSafeInteger(mem.minFree) || mem.minFree <= 0) {
+                throw new Error('mem.minFree field is required for threshold = fixed and must be more then 0');
             }
+
+            this._isMemOverloaded = this._isMemOverloadedByFixedThreshold.bind(this, mem.minFree);
         } else if (mem.thresholdType === 'rate') {
             if (mem.highWatermark === undefined || !Number.isFinite(mem.highWatermark) ||
                 mem.highWatermark <= 0 || mem.highWatermark >= 1) {
 
-                throw new Error('mem.highWatermark fields is required for threshold = rate and must be in range (0;1)');
+                throw new Error('mem.highWatermark field is required for threshold = rate and must be in range (0;1)');
             }
+
+            this._isMemOverloaded = this._isMemOverloadedByRateThreshold.bind(this, mem.highWatermark);
+        } else if (mem.thresholdType === 'none') {
+            this._isMemOverloaded = this._isMemOverloadedByIncorrectData.bind(this);
         } else {
             throw new Error('mem.thresholdType is not set or has invalid type');
         }
     }
 
+    _initCpuChecks(cpu) {
+        if (typeof cpu !== 'object') {
+            throw new Error('field `cpu` is required and must be an object');
+        }
 
-    if (cpu.thresholdType !== 'none') {
+        if (cpu.calculationAlgo === 'sma') {
+            if (!Number.isSafeInteger(cpu.periodPoints) || cpu.periodPoints < 1) {
+                throw new Error('cpu.periodPoints field is required for SMA algorithm and must be more than 0');
+            }
+            this._cpuUsageCalculator = new CpuUsageSma(cpu.periodPoints);
+        } else if (cpu.calculationAlgo === 'last_value') {
+            this._cpuUsageCalculator = new CpuUsage();
+        } else {
+            throw new Error('cpu.thresholdType is not set or has invalid type');
+        }
+
         if (cpu.thresholdType === 'rate') {
-            if (cpu.highWatermark === undefined || !Number.isFinite(cpu.highWatermark) ||
-                cpu.highWatermark <= 0 || cpu.highWatermark > 100) {
-                throw new Error('cpu.highWatermark fields is required for threshold = rate ' +
-                    'and must be in range (0;100]');
+            if (!cpu.highWatermark || !Number.isFinite(cpu.highWatermark) || cpu.highWatermark > 1) {
+                throw new Error('cpu.highWatermark field is required for threshold = rate and must be in range (0,1]');
             }
 
-            if (!Number.isSafeInteger(cpu.loadListLength) || cpu.loadListLength < 1) {
-                throw new Error('cpu.loadListLength fields is required for threshold = rate and must be more then 0');
-            }
+            this._isCpuOverloaded = this._isCpuOverloadByRateThreshold.bind(this, cpu.highWatermark);
+        } else if (cpu.thresholdType === 'none') {
+            this._isCpuOverloaded = () => false;
         } else {
             throw new Error('cpu.thresholdType is not set or has invalid type');
         }
