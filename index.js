@@ -11,14 +11,6 @@ class HealthChecker {
         return 2;
     }
 
-    static get HEALTH_STATUS_OK() {
-        return 1;
-    }
-
-    static get HEALTH_STATUS_OVERLOAD() {
-        return 2;
-    }
-
     constructor(config) {
         checkConfig(config);
 
@@ -28,13 +20,12 @@ class HealthChecker {
         this._memMaxFixed      = config.mem.maxFixed;
         this._memHighWatermark = config.mem.highWatermark;
 
-        this._cpuThresholdType = config.cpuUsage.thresholdType;
-        this._cpuMaxFixed      = config.cpuUsage.maxFixed;
+        this._cpuThresholdType = config.cpu.thresholdType;
+        this._cpuHighWatermark = config.cpu.highWatermark;
 
-        this._loadListLength = config.cpuUsage.loadListLength;
+        this._loadListLength = config.cpu.loadListLength;
         this._checkInterval  = config.checkInterval || 15000; // ms
 
-        this._pid      = process.pid;
         this._memTotal = -1;
         this._memFree  = -1;
         this._cpuCount = -1;
@@ -42,7 +33,6 @@ class HealthChecker {
         this._cpusList = undefined;
 
         this._isOverload   = true;
-        this._healthStatus = HealthChecker.HEALTH_STATUS_OVERLOAD;
 
         this._cpuUsageList = [];
         this._prevWorkTime = 0;
@@ -61,7 +51,7 @@ class HealthChecker {
     }
 
     stop() {
-        if (this._status !== HealthChecker.STATUS_STARTED) {
+        if (this._status === HealthChecker.STATUS_STOPPED) {
             throw new Error('HealthChecker service is not started');
         }
 
@@ -70,23 +60,38 @@ class HealthChecker {
         this._status = HealthChecker.STATUS_STOPPED;
     }
 
-    isOverload() {
-        return this._isOverload;
+    /* istanbul ignore next */
+    getMemTotal() {
+        try {
+            return Math.round(os.totalmem() / 1024);
+        } catch (err) {
+            return -1;
+        }
     }
 
-    getHealthInfo() {
-        return {
-            status: this._healthStatus,
-            pid:    this._pid,
-            mem:    {
-                total: this._memTotal,
-                free:  this._memFree
-            },
-            cpu:    {
-                usage: this._cpuUsage,
-                count: this._cpuCount
-            }
-        };
+    /* istanbul ignore next */
+    getMemFree() {
+        try {
+            return Math.round(os.freemem() / 1024);
+        } catch (err) {
+            return -1;
+        }
+    }
+
+    getCpuCount() {
+        try {
+            return this._cpusList.length;
+        } catch (err) {
+            return -1;
+        }
+    }
+
+    getCpuUsage() {
+        return this._cpuUsage;
+    }
+
+    isOverloaded() {
+        return this._isOverload;
     }
 
     _determineHealthIndicators() {
@@ -94,9 +99,8 @@ class HealthChecker {
         let cpuOverload = false;
 
         this._cpusList = this._getCpuInfo();
-        this._memTotal = this._getTotalRam();
-        this._memFree  = this._getFreeRam();
-        this._cpuCount = this._getCpuCount();
+        this._memTotal = this.getMemTotal();
+        this._memFree  = this.getMemFree();
 
         this._calculateCpuLoad();
 
@@ -122,43 +126,19 @@ class HealthChecker {
             }
         }
 
-        if (this._cpuThresholdType === 'multiplier') {
-            cpuOverload = this._cpuUsage > this._cpuMaxFixed;
+        if (this._cpuThresholdType === 'rate') {
+            cpuOverload = this._cpuUsage > this._cpuHighWatermark;
         }
 
-        this._isOverload   = memOverload || cpuOverload;
-        this._healthStatus = this._isOverload ? HealthChecker.HEALTH_STATUS_OVERLOAD : HealthChecker.HEALTH_STATUS_OK;
+        this._isOverload = memOverload || cpuOverload;
     }
 
+    /* istanbul ignore next */
     _getCpuInfo() {
         try {
             return os.cpus();
         } catch (err) {
             return undefined;
-        }
-    }
-
-    _getCpuCount() {
-        try {
-            return this._cpusList.length;
-        } catch (err) {
-            return -1;
-        }
-    }
-
-    _getTotalRam() {
-        try {
-            return Math.round(os.totalmem() / 1024);
-        } catch (err) {
-            return -1;
-        }
-    }
-
-    _getFreeRam() {
-        try {
-            return Math.round(os.freemem() / 1024);
-        } catch (err) {
-            return -1;
         }
     }
 
@@ -189,18 +169,18 @@ class HealthChecker {
     }
 }
 
-function checkConfig({checkInterval, mem, cpuUsage}) {
+function checkConfig({checkInterval, mem, cpu}) {
     if (checkInterval !== undefined && (!Number.isSafeInteger(checkInterval) || checkInterval < 1)) {
         throw new Error('checkInterval must be integer and more then 1');
     }
 
-    if (typeof mem !== 'object' || typeof cpuUsage !== 'object') {
-        throw new Error('fields `mem` and `cpuUsage` is required and type of object');
+    if (typeof mem !== 'object' || typeof cpu !== 'object') {
+        throw new Error('fields `mem` and `cpu` is required and type of object');
     }
 
     if (mem.thresholdType !== 'none') {
         if (mem.thresholdType === 'fixed') {
-            if (mem.maxFixed === undefined || !Number.isFinite(mem.maxFixed) || mem.maxFixed <= 0) {
+            if (mem.maxFixed === undefined || !Number.isSafeInteger(mem.maxFixed) || mem.maxFixed <= 0) {
                 throw new Error('mem.maxFixed fields is required for threshold = fixed and must be more then 0');
             }
         } else if (mem.thresholdType === 'rate') {
@@ -210,19 +190,24 @@ function checkConfig({checkInterval, mem, cpuUsage}) {
                 throw new Error('mem.highWatermark fields is required for threshold = rate and must be in range (0;1)');
             }
         } else {
-            throw new Error('invalid mem.thresholdType');
+            throw new Error('mem.thresholdType is not set or has invalid type');
         }
     }
 
-    if (cpuUsage.thresholdType !== 'none') {
-        if (cpuUsage.thresholdType === 'multiplier') {
-            if (cpuUsage.maxFixed === undefined || !Number.isFinite(cpuUsage.maxFixed) ||
-                cpuUsage.maxFixed <= 0 || cpuUsage.maxFixed > 100) {
-                throw new Error('cpuUsage.maxFixed fields is required for threshold = multiplier and ' +
-                    'must be in range (0;100]');
+
+    if (cpu.thresholdType !== 'none') {
+        if (cpu.thresholdType === 'rate') {
+            if (cpu.highWatermark === undefined || !Number.isFinite(cpu.highWatermark) ||
+                cpu.highWatermark <= 0 || cpu.highWatermark > 100) {
+                throw new Error('cpu.highWatermark fields is required for threshold = rate ' +
+                    'and must be in range (0;100]');
+            }
+
+            if (!Number.isSafeInteger(cpu.loadListLength) || cpu.loadListLength < 1) {
+                throw new Error('cpu.loadListLength fields is required for threshold = rate and must be more then 0');
             }
         } else {
-            throw new Error('invalid cpuUsage.thresholdType');
+            throw new Error('cpu.thresholdType is not set or has invalid type');
         }
     }
 }
