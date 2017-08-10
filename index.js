@@ -212,7 +212,7 @@ class HealthChecker {
         } else if (cpu.calculationAlgo === 'last_value') {
             this._cpuUsageCalculator = new CpuUsage();
         } else {
-            throw new Error('cpu.thresholdType is not set or has invalid type');
+            throw new Error('cpu.calculationAlgo is not set or has invalid type');
         }
 
         if (cpu.thresholdType === 'rate') {
