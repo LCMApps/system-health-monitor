@@ -1,9 +1,15 @@
 'use strict';
 
-const os = require('os');
+const fs        = require('fs');
+const os        = require('os');
+const promisify = require('util').promisify;
 
 const CpuUsage    = require('./lib/CpuUsage');
 const CpuUsageSma = require('./lib/CpuUsageSma');
+
+const readFileSync = promisify(fs.readFile);
+
+const MEMINFO = '/proc/meminfo';
 
 class HealthChecker {
     static get STATUS_STOPPED() {
@@ -39,12 +45,12 @@ class HealthChecker {
         this._determineHealthIndicators = this._determineHealthIndicators.bind(this);
     }
 
-    start() {
+    async start() {
         if (this._status === HealthChecker.STATUS_STARTED) {
             throw new Error('HealthChecker service is already started');
         }
 
-        this._determineHealthIndicators();
+        await this._determineHealthIndicators();
 
         this._healthScheduler = setInterval(this._determineHealthIndicators, this._checkInterval);
         this._status          = HealthChecker.STATUS_STARTED;
@@ -110,9 +116,26 @@ class HealthChecker {
     }
 
     /* istanbul ignore next */
-    _getFreeMem() {
+    async _getFreeMem() {
+        let result = 0;
+        let indicatorsCounter = 3;
+
         try {
-            return Math.ceil(os.freemem() / 1048576);
+            const memInfo = await readFileSync(MEMINFO, 'utf8');
+            const lines   = memInfo.split('\n');
+            for (const line of lines) {
+                if (line.includes('MemFree:') || line.includes('Buffers:') || line.includes('Cached:')) {
+                    const value = line.split(':')[1].slice(0, -3).trim();
+                    result += +value;
+                    indicatorsCounter--;
+                }
+
+                if (indicatorsCounter === 0) {
+                    break;
+                }
+            }
+
+            return Math.ceil(result / 1024);
         } catch (err) {
             return -1;
         }
@@ -136,9 +159,9 @@ class HealthChecker {
         }
     }
 
-    _determineHealthIndicators() {
+    async _determineHealthIndicators() {
         this._memTotal = this._getTotalMem();
-        this._memFree  = this._getFreeMem();
+        this._memFree  = await this._getFreeMem();
 
         const memOverload = this._isMemOverloaded(this._memFree, this._memTotal);
 
