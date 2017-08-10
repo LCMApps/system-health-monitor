@@ -155,9 +155,6 @@ class HealthChecker {
         const cpuOverload = this._isCpuOverloaded(this._cpuUsage);
 
         this._isOverload = memOverload || cpuOverload;
-
-        console.log(this._memTotal, this._memFree, this._cpuCount, this._cpuUsage, this._isOverload);
-
     }
 
     _isMemOverloadedByIncorrectData(free, total) {
