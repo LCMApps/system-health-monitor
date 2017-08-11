@@ -7,7 +7,8 @@ const promisify = require('util').promisify;
 const CpuUsage    = require('./lib/CpuUsage');
 const CpuUsageSma = require('./lib/CpuUsageSma');
 
-const readFileSync = promisify(fs.readFile);
+const readFileSync  = promisify(fs.readFile);
+const MB_MULTIPLIER = 1024;
 
 /**
  * Row example: MemTotal:        8068528 kB
@@ -18,7 +19,7 @@ function getSizeFromMeminfoRow(row) {
     return +row.split(':')[1].slice(0, -3).trim();
 }
 
-const MEMINFO_FILE = '/proc/meminfo';
+const MEMINFO_PATH = '/proc/meminfo';
 
 class HealthChecker {
     static get STATUS_STOPPED() {
@@ -115,37 +116,42 @@ class HealthChecker {
         return this._isOverload;
     }
 
-    /* istanbul ignore next */
+    /**
+     * For /proc/meminfo doc see: https://www.centos.org/docs/5/html/5.1/Deployment_Guide/s2-proc-meminfo.html
+     * @returns {Promise.<void>}
+     */
     async _getMemInfo() {
-        let result            = 0;
+        let memFree           = 0;
         let indicatorsCounter = 4;
+        let memInfo           = undefined;
 
         try {
-            const memInfo = await readFileSync(MEMINFO_FILE, 'utf8');
-
-            for (const line of memInfo.split('\n')) {
-                if (line.includes('MemTotal:')) {
-                    this._memTotal = Math.floor(getSizeFromMeminfoRow(line) / 1024);
-                    indicatorsCounter--;
-                    continue;
-                }
-
-                if (line.includes('MemFree:') || line.includes('Buffers:') || line.includes('Cached:')) {
-                    result += parseInt(getSizeFromMeminfoRow(line));
-                    indicatorsCounter--;
-                    continue;
-                }
-
-                if (indicatorsCounter === 0) {
-                    break;
-                }
-            }
-
-            this._memFree = Math.ceil(result / 1024);
+            memInfo = await readFileSync(MEMINFO_PATH, 'utf8');
         } catch (err) {
             this._memTotal = -1;
             this._memFree  = -1;
+            return;
         }
+
+        for (const line of memInfo.split('\n')) {
+            if (line.includes('MemTotal:')) {
+                this._memTotal = Math.floor(getSizeFromMeminfoRow(line) / MB_MULTIPLIER);
+                indicatorsCounter--;
+                continue;
+            }
+
+            if (line.includes('MemFree:') || line.includes('Buffers:') || line.includes('Cached:')) {
+                memFree += parseInt(getSizeFromMeminfoRow(line));
+                indicatorsCounter--;
+                continue;
+            }
+
+            if (indicatorsCounter === 0) {
+                break;
+            }
+        }
+
+        this._memFree = Math.ceil(memFree / MB_MULTIPLIER);
     }
 
     /* istanbul ignore next */
