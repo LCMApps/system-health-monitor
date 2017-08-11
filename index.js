@@ -9,7 +9,16 @@ const CpuUsageSma = require('./lib/CpuUsageSma');
 
 const readFileSync = promisify(fs.readFile);
 
-const MEMINFO = '/proc/meminfo';
+/**
+ * Row example: MemTotal:        8068528 kB
+ * @param {string} row
+ * @returns {number} size in kB
+ */
+function getSizeFromMeminfoRow(row) {
+    return +row.split(':')[1].slice(0, -3).trim();
+}
+
+const MEMINFO_FILE = '/proc/meminfo';
 
 class HealthChecker {
     static get STATUS_STOPPED() {
@@ -107,27 +116,24 @@ class HealthChecker {
     }
 
     /* istanbul ignore next */
-    _getTotalMem() {
-        try {
-            return Math.floor(os.totalmem() / 1048576); // 1048576 = 1024^2
-        } catch (err) {
-            return -1;
-        }
-    }
-
-    /* istanbul ignore next */
-    async _getFreeMem() {
-        let result = 0;
-        let indicatorsCounter = 3;
+    async _getMemInfo() {
+        let result            = 0;
+        let indicatorsCounter = 4;
 
         try {
-            const memInfo = await readFileSync(MEMINFO, 'utf8');
-            const lines   = memInfo.split('\n');
-            for (const line of lines) {
-                if (line.includes('MemFree:') || line.includes('Buffers:') || line.includes('Cached:')) {
-                    const value = line.split(':')[1].slice(0, -3).trim();
-                    result += +value;
+            const memInfo = await readFileSync(MEMINFO_FILE, 'utf8');
+
+            for (const line of memInfo.split('\n')) {
+                if (line.includes('MemTotal:')) {
+                    this._memTotal = Math.floor(getSizeFromMeminfoRow(line) / 1024);
                     indicatorsCounter--;
+                    continue;
+                }
+
+                if (line.includes('MemFree:') || line.includes('Buffers:') || line.includes('Cached:')) {
+                    result += parseInt(getSizeFromMeminfoRow(line));
+                    indicatorsCounter--;
+                    continue;
                 }
 
                 if (indicatorsCounter === 0) {
@@ -135,9 +141,10 @@ class HealthChecker {
                 }
             }
 
-            return Math.ceil(result / 1024);
+            this._memFree = Math.ceil(result / 1024);
         } catch (err) {
-            return -1;
+            this._memTotal = -1;
+            this._memFree  = -1;
         }
     }
 
@@ -160,8 +167,7 @@ class HealthChecker {
     }
 
     async _determineHealthIndicators() {
-        this._memTotal = this._getTotalMem();
-        this._memFree  = await this._getFreeMem();
+        await this._getMemInfo();
 
         const memOverload = this._isMemOverloaded(this._memFree, this._memTotal);
 
