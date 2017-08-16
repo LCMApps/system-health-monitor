@@ -1,12 +1,12 @@
 /* eslint-disable max-len */
 'use strict';
 
-const HealthChecker = require('../index');
+const SystemHealthMonitor = require('../index');
 
 const sinon  = require('sinon');
 const assert = require('chai').assert;
 
-describe('HealthChecker', () => {
+describe('SystemHealthMonitor', () => {
     describe('Config validation', () => {
         let incorrectConfigs = [42, true, 'string', null, undefined, Symbol(), [], () => {
         }];
@@ -14,7 +14,7 @@ describe('HealthChecker', () => {
         incorrectConfigs.forEach((config) => {
             it('argument must be an object', () => {
                 try {
-                    new HealthChecker(config);
+                    new SystemHealthMonitor(config);
                 } catch (err) {
                     assert.instanceOf(err, Error);
                 }
@@ -29,10 +29,10 @@ describe('HealthChecker', () => {
                 const config = {checkInterval: arg};
 
                 try {
-                    new HealthChecker(config);
+                    new SystemHealthMonitor(config);
                 } catch (err) {
                     assert.instanceOf(err, Error);
-                    assert.equal(err.message, 'checkInterval must be integer and more than 1');
+                    assert.equal(err.message, 'field `checkInterval` is required must be an integer and more than 1');
                 }
             });
         });
@@ -45,10 +45,10 @@ describe('HealthChecker', () => {
                 const config = {mem: arg};
 
                 try {
-                    new HealthChecker(config);
+                    new SystemHealthMonitor(config);
                 } catch (err) {
                     assert.instanceOf(err, Error);
-                    assert.equal(err.message, 'fields `mem` and `cpu` is required and must be an object');
+                    assert.equal(err.message, 'field `checkInterval` is required must be an integer and more than 1');
                 }
             });
         });
@@ -61,7 +61,7 @@ describe('HealthChecker', () => {
                 const config = {mem: arg};
 
                 try {
-                    new HealthChecker(config);
+                    new SystemHealthMonitor(config);
                 } catch (err) {
                     assert.instanceOf(err, Error);
                     assert.equal(err.message, 'fields `mem` and `cpu` is required and must be an object');
@@ -79,7 +79,7 @@ describe('HealthChecker', () => {
                 };
 
                 try {
-                    new HealthChecker(config);
+                    new SystemHealthMonitor(config);
                 } catch (err) {
                     assert.instanceOf(err, Error);
                     assert.equal(err.message, 'mem.thresholdType is not set or has invalid type');
@@ -101,7 +101,7 @@ describe('HealthChecker', () => {
                 };
 
                 try {
-                    new HealthChecker(config);
+                    new SystemHealthMonitor(config);
                 } catch (err) {
                     assert.instanceOf(err, Error);
                     assert.equal(err.message, 'mem.maxFixed fields is required for threshold = fixed and must be more than 0');
@@ -123,7 +123,7 @@ describe('HealthChecker', () => {
                 };
 
                 try {
-                    new HealthChecker(config);
+                    new SystemHealthMonitor(config);
                 } catch (err) {
                     assert.instanceOf(err, Error);
                     assert.equal(err.message, 'mem.highWatermark fields is required for threshold = rate and must be in range (0,1]');
@@ -139,12 +139,12 @@ describe('HealthChecker', () => {
                     mem: {thresholdType: 'none'},
                     cpu: {
                         thresholdType: arg,
-                        loadListLength: 5
+                        periodPoints:  5
                     }
                 };
 
                 try {
-                    new HealthChecker(config);
+                    new SystemHealthMonitor(config);
                 } catch (err) {
                     assert.instanceOf(err, Error);
                     assert.equal(err.message, 'cpu.thresholdType is not set or has invalid type');
@@ -164,13 +164,13 @@ describe('HealthChecker', () => {
                     cpu: {
                         thresholdType: 'rate',
                         maxFixed:      arg,
-                        loadListLength: 5
+                        periodPoints:  5
 
                     }
                 };
 
                 try {
-                    new HealthChecker(config);
+                    new SystemHealthMonitor(config);
                 } catch (err) {
                     assert.instanceOf(err, Error);
                     assert.equal(err.message, 'cpu.highWatermark fields is required for threshold = rate and must be in range (0,1]');
@@ -182,20 +182,20 @@ describe('HealthChecker', () => {
         }];
 
         incorrectCpuLoadListLength.forEach((arg) => {
-            it('invalid cpu.loadListLength', () => {
+            it('invalid cpu.periodPoints', () => {
                 const config = {
                     mem: {
                         thresholdType: 'none'
                     },
                     cpu: {
-                        thresholdType:  'rate',
-                        highWatermark:  50,
-                        loadListLength: arg
+                        thresholdType: 'rate',
+                        highWatermark: 50,
+                        periodPoints:  arg
                     }
                 };
 
                 try {
-                    new HealthChecker(config);
+                    new SystemHealthMonitor(config);
                 } catch (err) {
                     assert.instanceOf(err, Error);
                     assert.equal(err.message, 'cpu.loadListLength fields is required for threshold = rate and must be more than 0');
@@ -212,9 +212,10 @@ describe('HealthChecker', () => {
             highWatermark: 0.75
         },
         cpu:           {
-            thresholdType:  'none',
-            loadListLength: 5,
-            highWatermark:  75.5
+            calculationAlgo: 'sma',
+            thresholdType:   'none',
+            periodPoints:    5,
+            highWatermark:   0.75
         }
     };
 
@@ -242,12 +243,12 @@ describe('HealthChecker', () => {
             }
         }];
 
-    it('HealthChecker correctly calculate CPU load with zero state of service', () => {
-        const healthChecker = new HealthChecker(checkerConf);
+    it('SystemHealthMonitor correctly calculate CPU load with zero state of service', () => {
+        const systemHealthMonitor = new SystemHealthMonitor(checkerConf);
 
-        healthChecker._cpusList = cpusMock;
+        systemHealthMonitor._cpusList = cpusMock;
 
-        healthChecker._calculateCpuLoad();
+        systemHealthMonitor._calculateCpuLoad();
 
         let expectedBusyTime = 0;
         let expectedWorkTime = 0;
@@ -259,18 +260,18 @@ describe('HealthChecker', () => {
 
         const expectedCpuLoad = expectedBusyTime / expectedWorkTime * 100;
 
-        assert.equal(healthChecker._prevWorkTime, expectedWorkTime);
-        assert.equal(healthChecker._prevBusyTime, expectedBusyTime);
-        assert.equal(healthChecker._cpuUsageList.length, 1);
-        assert.equal(healthChecker._cpuUsageList[0], expectedCpuLoad);
-        assert.equal(healthChecker.isOverloaded(), true);
+        assert.equal(systemHealthMonitor._prevWorkTime, expectedWorkTime);
+        assert.equal(systemHealthMonitor._prevBusyTime, expectedBusyTime);
+        assert.equal(systemHealthMonitor._cpuUsageList.length, 1);
+        assert.equal(systemHealthMonitor._cpuUsageList[0], expectedCpuLoad);
+        assert.equal(systemHealthMonitor.isOverloaded(), true);
     });
 
-    it('HealthChecker correctly calculate CPU load with non-zero state of service', () => {
+    it('SystemHealthMonitor correctly calculate CPU load with non-zero state of service', () => {
         const prevWorkTime = 200;
         const prevBusyTime = 100;
 
-        const healthChecker = new HealthChecker(checkerConf);
+        const healthChecker = new SystemHealthMonitor(checkerConf);
 
         healthChecker._cpusList     = cpusMock;
         healthChecker._prevWorkTime = prevWorkTime;
@@ -296,10 +297,10 @@ describe('HealthChecker', () => {
         assert.equal(healthChecker.isOverloaded(), true);
     });
 
-    it('HealthChecker calculate CPU load equal 100% if info about cores not allowed', () => {
+    it('SystemHealthMonitor calculate CPU load equal 100% if info about cores not allowed', () => {
         const prevWorkTime  = 200;
         const prevBusyTime  = 100;
-        const healthChecker = new HealthChecker(checkerConf);
+        const healthChecker = new SystemHealthMonitor(checkerConf);
 
         healthChecker._prevWorkTime = prevWorkTime;
         healthChecker._prevBusyTime = prevBusyTime;
@@ -320,8 +321,8 @@ describe('HealthChecker', () => {
         assert.equal(healthChecker.getCpuCount(), -1);
     });
 
-    it('HealthChecker set overload = false if all thresholdType = none', () => {
-        const healthChecker = new HealthChecker(checkerConf);
+    it('SystemHealthMonitor set overload = false if all thresholdType = none', () => {
+        const healthChecker = new SystemHealthMonitor(checkerConf);
 
         sinon.stub(healthChecker, '_getCpuInfo');
         sinon.stub(healthChecker, '_getCpuCount');
@@ -345,10 +346,10 @@ describe('HealthChecker', () => {
         assert.equal(healthChecker.getCpuCount(), 4);
     });
 
-    it('HealthChecker set overload = true if cpu.thresholdType = rate and CPU usage higher highWatermark', () => {
+    it('SystemHealthMonitor set overload = true if cpu.thresholdType = rate and CPU usage higher highWatermark', () => {
         checkerConf.cpu.thresholdType = 'rate';
 
-        const healthChecker = new HealthChecker(checkerConf);
+        const healthChecker = new SystemHealthMonitor(checkerConf);
 
         sinon.stub(healthChecker, '_getCpuInfo');
         sinon.stub(healthChecker, 'getCpuCount');
@@ -374,10 +375,10 @@ describe('HealthChecker', () => {
         assert.equal(healthChecker.getCpuCount(), 4);
     });
 
-    it('HealthChecker set overload = false if cpu.thresholdType = rate and CPU usage lower maxFixed', () => {
+    it('SystemHealthMonitor set overload = false if cpu.thresholdType = rate and CPU usage lower maxFixed', () => {
         checkerConf.cpu.thresholdType = 'rate';
 
-        const healthChecker = new HealthChecker(checkerConf);
+        const healthChecker = new SystemHealthMonitor(checkerConf);
 
         sinon.stub(healthChecker, '_getCpuCount');
         sinon.stub(healthChecker, '_getTotalMem');
@@ -398,12 +399,12 @@ describe('HealthChecker', () => {
         assert.equal(healthChecker.getCpuCount(), 4);
     });
 
-    it('HealthChecker set overload = false if mem.thresholdType = fixed and RAM usage lower maxFixed', () => {
+    it('SystemHealthMonitor set overload = false if mem.thresholdType = fixed and RAM usage lower maxFixed', () => {
         checkerConf.cpu.thresholdType = 'none';
         checkerConf.mem.thresholdType = 'fixed';
         checkerConf.mem.maxFixed      = 1500;
 
-        const healthChecker = new HealthChecker(checkerConf);
+        const healthChecker = new SystemHealthMonitor(checkerConf);
 
         sinon.stub(healthChecker, '_getCpuCount');
         sinon.stub(healthChecker, '_getTotalMem');
@@ -422,12 +423,12 @@ describe('HealthChecker', () => {
         assert.equal(healthChecker.getMemTotal(), 2048);
     });
 
-    it('HealthChecker set overload = true if mem.thresholdType = fixed and RAM usage higher maxFixed', () => {
+    it('SystemHealthMonitor set overload = true if mem.thresholdType = fixed and RAM usage higher maxFixed', () => {
         checkerConf.cpu.thresholdType = 'none';
         checkerConf.mem.thresholdType = 'fixed';
         checkerConf.mem.maxFixed      = 1500;
 
-        const healthChecker = new HealthChecker(checkerConf);
+        const healthChecker = new SystemHealthMonitor(checkerConf);
 
         sinon.stub(healthChecker, '_getCpuCount');
         sinon.stub(healthChecker, '_getTotalMem');
@@ -446,12 +447,12 @@ describe('HealthChecker', () => {
         assert.equal(healthChecker.getMemTotal(), 2048);
     });
 
-    it('HealthChecker set overload = false if mem.thresholdType = rate and RAM usage lower highWatermark', () => {
+    it('SystemHealthMonitor set overload = false if mem.thresholdType = rate and RAM usage lower highWatermark', () => {
         checkerConf.cpu.thresholdType = 'none';
         checkerConf.mem.thresholdType = 'rate';
         checkerConf.mem.highWatermark = 0.75;
 
-        const healthChecker = new HealthChecker(checkerConf);
+        const healthChecker = new SystemHealthMonitor(checkerConf);
 
         sinon.stub(healthChecker, '_getCpuCount');
         sinon.stub(healthChecker, '_getTotalMem');
@@ -470,12 +471,12 @@ describe('HealthChecker', () => {
         assert.equal(healthChecker.getMemTotal(), 2048);
     });
 
-    it('HealthChecker set overload = true if mem.thresholdType = rate and RAM usage higher highWatermark', () => {
+    it('SystemHealthMonitor set overload = true if mem.thresholdType = rate and RAM usage higher highWatermark', () => {
         checkerConf.cpu.thresholdType = 'none';
         checkerConf.mem.thresholdType = 'rate';
         checkerConf.mem.highWatermark = 0.75;
 
-        const healthChecker = new HealthChecker(checkerConf);
+        const healthChecker = new SystemHealthMonitor(checkerConf);
 
         sinon.stub(healthChecker, '_getCpuCount');
         sinon.stub(healthChecker, '_getTotalMem');
@@ -494,12 +495,12 @@ describe('HealthChecker', () => {
         assert.equal(healthChecker.getMemTotal(), 2048);
     });
 
-    it('HealthChecker set overload = true if mem.thresholdType = rate and _getFreeMem return -1', () => {
+    it('SystemHealthMonitor set overload = true if mem.thresholdType = rate and _getFreeMem return -1', () => {
         checkerConf.cpu.thresholdType = 'none';
         checkerConf.mem.thresholdType = 'rate';
         checkerConf.mem.highWatermark = 0.75;
 
-        const healthChecker = new HealthChecker(checkerConf);
+        const healthChecker = new SystemHealthMonitor(checkerConf);
 
         sinon.stub(healthChecker, 'getCpuCount');
         sinon.stub(healthChecker, '_getTotalMem');
@@ -518,12 +519,12 @@ describe('HealthChecker', () => {
         assert.equal(healthChecker.getMemTotal(), 2048);
     });
 
-    it('HealthChecker set overload = true if mem.thresholdType = rate and _getFreeMem and _getTotalMem return -1', () => {
+    it('SystemHealthMonitor set overload = true if mem.thresholdType = rate and _getFreeMem and _getTotalMem return -1', () => {
         checkerConf.cpu.thresholdType = 'none';
         checkerConf.mem.thresholdType = 'rate';
         checkerConf.mem.highWatermark = 0.75;
 
-        const healthChecker = new HealthChecker(checkerConf);
+        const healthChecker = new SystemHealthMonitor(checkerConf);
 
         sinon.stub(healthChecker, '_getCpuCount');
         sinon.stub(healthChecker, '_getTotalMem');
@@ -542,12 +543,12 @@ describe('HealthChecker', () => {
         assert.equal(healthChecker.getMemTotal(), -1);
     });
 
-    it('HealthChecker set overload = true if mem.thresholdType = fixed and _getFreeMem and _getTotalMem return -1', () => {
+    it('SystemHealthMonitor set overload = true if mem.thresholdType = fixed and _getFreeMem and _getTotalMem return -1', () => {
         checkerConf.cpu.thresholdType = 'none';
         checkerConf.mem.thresholdType = 'fixed';
         checkerConf.mem.maxFixed      = 1500;
 
-        const healthChecker = new HealthChecker(checkerConf);
+        const healthChecker = new SystemHealthMonitor(checkerConf);
 
         sinon.stub(healthChecker, '_getCpuCount');
         sinon.stub(healthChecker, '_getTotalMem');
@@ -566,13 +567,13 @@ describe('HealthChecker', () => {
         assert.equal(healthChecker.getMemTotal(), -1);
     });
 
-    it('HealthChecker set overload = false if mem and cpu indicators are lower max values', () => {
+    it('SystemHealthMonitor set overload = false if mem and cpu indicators are lower max values', () => {
         checkerConf.cpu.thresholdType = 'rate';
         checkerConf.cpu.highWatermark = 75;
         checkerConf.mem.thresholdType = 'rate';
         checkerConf.mem.highWatermark = 0.75;
 
-        const healthChecker = new HealthChecker(checkerConf);
+        const healthChecker = new SystemHealthMonitor(checkerConf);
 
         sinon.stub(healthChecker, '_getCpuCount');
         sinon.stub(healthChecker, '_getTotalMem');
@@ -593,12 +594,12 @@ describe('HealthChecker', () => {
         assert.equal(healthChecker.getCpuUsage(), 0.6);
     });
 
-    it('HealthChecker set overload = true if mem and cpu indicators are higher max values', () => {
+    it('SystemHealthMonitor set overload = true if mem and cpu indicators are higher max values', () => {
         checkerConf.cpu.thresholdType = 'none';
         checkerConf.mem.thresholdType = 'rate';
         checkerConf.mem.highWatermark = 0.75;
 
-        const healthChecker = new HealthChecker(checkerConf);
+        const healthChecker = new SystemHealthMonitor(checkerConf);
 
         sinon.stub(healthChecker, 'getCpuCount');
         sinon.stub(healthChecker, '_getTotalMem');
@@ -619,8 +620,8 @@ describe('HealthChecker', () => {
         assert.equal(healthChecker.getCpuUsage(), 0.8);
     });
 
-    it('HealthChecker start scheduler', () => {
-        const healthChecker = new HealthChecker(checkerConf);
+    it('SystemHealthMonitor start scheduler', () => {
+        const healthChecker = new SystemHealthMonitor(checkerConf);
 
         sinon.stub(healthChecker, '_determineHealthIndicators');
 
@@ -629,14 +630,14 @@ describe('HealthChecker', () => {
         const expectedSchedulerClass = 'Timeout';
         const actualSchedulerClass   = healthChecker._healthScheduler.constructor.name;
 
-        assert.equal(healthChecker._status, HealthChecker.STATUS_STARTED);
+        assert.equal(healthChecker._status, SystemHealthMonitor.STATUS_STARTED);
         assert.isOk(healthChecker._determineHealthIndicators.calledOnce);
         assert.equal(actualSchedulerClass, expectedSchedulerClass);
         assert.equal(healthChecker._healthScheduler._repeat, checkerConf.checkInterval);
     });
 
-    it('HealthChecker second start call throw error', () => {
-        const healthChecker = new HealthChecker(checkerConf);
+    it('SystemHealthMonitor second start call throw error', () => {
+        const healthChecker = new SystemHealthMonitor(checkerConf);
 
         sinon.stub(healthChecker, '_determineHealthIndicators');
 
@@ -645,15 +646,15 @@ describe('HealthChecker', () => {
         const expectedSchedulerClass = 'Timeout';
         const actualSchedulerClass   = healthChecker._healthScheduler.constructor.name;
 
-        assert.equal(healthChecker._status, HealthChecker.STATUS_STARTED);
+        assert.equal(healthChecker._status, SystemHealthMonitor.STATUS_STARTED);
         assert.isOk(healthChecker._determineHealthIndicators.calledOnce);
         assert.equal(actualSchedulerClass, expectedSchedulerClass);
 
         assert.throw(() => healthChecker.start());
     });
 
-    it('HealthChecker stop scheduler', () => {
-        const healthChecker = new HealthChecker(checkerConf);
+    it('SystemHealthMonitor stop scheduler', () => {
+        const healthChecker = new SystemHealthMonitor(checkerConf);
 
         sinon.stub(healthChecker, '_determineHealthIndicators');
 
@@ -661,12 +662,12 @@ describe('HealthChecker', () => {
         healthChecker.stop();
 
         assert.isOk(healthChecker._determineHealthIndicators.calledOnce);
-        assert.equal(healthChecker._status, HealthChecker.STATUS_STOPPED);
+        assert.equal(healthChecker._status, SystemHealthMonitor.STATUS_STOPPED);
         assert.equal(healthChecker._healthScheduler._repeat, null);
     });
 
-    it('HealthChecker second stop call throw error', () => {
-        const healthChecker = new HealthChecker(checkerConf);
+    it('SystemHealthMonitor second stop call throw error', () => {
+        const healthChecker = new SystemHealthMonitor(checkerConf);
 
         sinon.stub(healthChecker, '_determineHealthIndicators');
 
@@ -674,7 +675,7 @@ describe('HealthChecker', () => {
         healthChecker.stop();
 
         assert.isOk(healthChecker._determineHealthIndicators.calledOnce);
-        assert.equal(healthChecker._status, HealthChecker.STATUS_STOPPED);
+        assert.equal(healthChecker._status, SystemHealthMonitor.STATUS_STOPPED);
         assert.equal(healthChecker._healthScheduler._repeat, null);
 
         assert.throw(() => healthChecker.stop());

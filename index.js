@@ -21,7 +21,7 @@ function getSizeFromMeminfoRow(row) {
 
 const MEMINFO_PATH = '/proc/meminfo';
 
-class HealthChecker {
+class SystemHealthMonitor {
     static get STATUS_STOPPED() {
         return 1;
     }
@@ -44,7 +44,7 @@ class HealthChecker {
         this._initMemChecks(mem);
         this._initCpuChecks(cpu);
 
-        this._status = HealthChecker.STATUS_STOPPED;
+        this._status = SystemHealthMonitor.STATUS_STOPPED;
 
         this._memTotal   = -1;
         this._memFree    = -1;
@@ -56,61 +56,61 @@ class HealthChecker {
     }
 
     async start() {
-        if (this._status === HealthChecker.STATUS_STARTED) {
-            throw new Error('HealthChecker service is already started');
+        if (this._status === SystemHealthMonitor.STATUS_STARTED) {
+            throw new Error('SystemHealthMonitor service is already started');
         }
 
         await this._determineHealthIndicators();
 
         this._healthScheduler = setInterval(this._determineHealthIndicators, this._checkInterval);
-        this._status          = HealthChecker.STATUS_STARTED;
+        this._status          = SystemHealthMonitor.STATUS_STARTED;
     }
 
     stop() {
-        if (this._status === HealthChecker.STATUS_STOPPED) {
-            throw new Error('HealthChecker service is not started');
+        if (this._status === SystemHealthMonitor.STATUS_STOPPED) {
+            throw new Error('SystemHealthMonitor service is not started');
         }
 
         clearInterval(this._healthScheduler);
 
-        this._status = HealthChecker.STATUS_STOPPED;
+        this._status = SystemHealthMonitor.STATUS_STOPPED;
     }
 
     getMemTotal() {
-        if (this._status === HealthChecker.STATUS_STOPPED) {
-            throw new Error('HealthChecker service is not started');
+        if (this._status === SystemHealthMonitor.STATUS_STOPPED) {
+            throw new Error('SystemHealthMonitor service is not started');
         }
 
         return this._memTotal;
     }
 
     getMemFree() {
-        if (this._status === HealthChecker.STATUS_STOPPED) {
-            throw new Error('HealthChecker service is not started');
+        if (this._status === SystemHealthMonitor.STATUS_STOPPED) {
+            throw new Error('SystemHealthMonitor service is not started');
         }
 
         return this._memFree;
     }
 
     getCpuCount() {
-        if (this._status === HealthChecker.STATUS_STOPPED) {
-            throw new Error('HealthChecker service is not started');
+        if (this._status === SystemHealthMonitor.STATUS_STOPPED) {
+            throw new Error('SystemHealthMonitor service is not started');
         }
 
         return this._cpuCount;
     }
 
     getCpuUsage() {
-        if (this._status === HealthChecker.STATUS_STOPPED) {
-            throw new Error('HealthChecker service is not started');
+        if (this._status === SystemHealthMonitor.STATUS_STOPPED) {
+            throw new Error('SystemHealthMonitor service is not started');
         }
 
         return this._cpuUsage;
     }
 
     isOverloaded() {
-        if (this._status === HealthChecker.STATUS_STOPPED) {
-            throw new Error('HealthChecker service is not started');
+        if (this._status === SystemHealthMonitor.STATUS_STOPPED) {
+            throw new Error('SystemHealthMonitor service is not started');
         }
 
         return this._isOverload;
@@ -264,4 +264,4 @@ class HealthChecker {
     }
 }
 
-module.exports = HealthChecker;
+module.exports = SystemHealthMonitor;
