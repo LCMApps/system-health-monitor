@@ -9,6 +9,7 @@ const CpuUsageSma = require('./lib/CpuUsageSma');
 
 const readFileSync  = promisify(fs.readFile);
 const MB_MULTIPLIER = 1024;
+const MEMINFO_PATH = '/proc/meminfo';
 
 /**
  * Row example: MemTotal:        8068528 kB
@@ -18,8 +19,6 @@ const MB_MULTIPLIER = 1024;
 function getSizeFromMeminfoRow(row) {
     return +row.split(':')[1].slice(0, -3).trim();
 }
-
-const MEMINFO_PATH = '/proc/meminfo';
 
 class SystemHealthMonitor {
     static get STATUS_STOPPED() {
@@ -51,6 +50,8 @@ class SystemHealthMonitor {
         this._cpuCount   = -1;
         this._cpuUsage   = 100;
         this._isOverload = true;
+
+        this._healthScheduler = undefined;
 
         this._determineHealthIndicators = this._determineHealthIndicators.bind(this);
     }
@@ -116,6 +117,10 @@ class SystemHealthMonitor {
         return this._isOverload;
     }
 
+    /* istanbul ignore next */
+    async _readMeminfoFile() {
+        return await readFileSync(MEMINFO_PATH, 'utf8');
+    }
     /**
      * For /proc/meminfo doc see: https://www.centos.org/docs/5/html/5.1/Deployment_Guide/s2-proc-meminfo.html
      * @returns {Promise.<void>}
@@ -126,7 +131,7 @@ class SystemHealthMonitor {
         let memInfo           = undefined;
 
         try {
-            memInfo = await readFileSync(MEMINFO_PATH, 'utf8');
+            memInfo = await this._readMeminfoFile();
         } catch (err) {
             this._memTotal = -1;
             this._memFree  = -1;
