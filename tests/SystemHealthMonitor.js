@@ -15,7 +15,7 @@ describe('SystemHealthMonitor', () => {
             checkInterval: 15000,
             mem:           {
                 thresholdType: 'none',
-                maxFixed:      1024,
+                minFree:       1024,
                 highWatermark: 0.75
             },
             cpu:           {
