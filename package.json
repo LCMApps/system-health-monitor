@@ -1,6 +1,6 @@
 {
-  "name": "health-checker",
-  "version": "1.0.0",
+  "name": "system-health-monitor",
+  "version": "1.0.1",
   "description": "This module implements service that check RAM and CPU characteristics and decides according to passed config that instance is overloaded",
   "main": "index.js",
   "scripts": {

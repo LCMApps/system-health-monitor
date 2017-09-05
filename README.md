@@ -12,7 +12,7 @@
     
     mem:
         thresholdType: {'none', 'fixed', 'rate'} - тип проверки перегрузки по памяти;
-        minFree: {uint32} - (required for thresholdType = fixed), минимально допустимый объем свободной памяти в KB;
+        minFree: {uint32} - (required for thresholdType = fixed), минимально допустимый объем свободной памяти в MB;
         highWatermark: {float} - (required for thresholdType = rate), максимально допустимый процент использования памяти (0, 1];
         
     cpu:
@@ -38,7 +38,7 @@
     totalMem = systemHealthMonitor.getMemTotal();
     freeMem = systemHealthMonitor.getMemFree();
 
-`getMemTotal` и `getMemFree` возвращают значение в KB.
+`getMemTotal` и `getMemFree` возвращают значение в MB.
 
 Подзадача определяет общее количество памяти на сервере и количество свободной памяти. 
 Свободная память является такой, которая может быть выделена процессом. И расчитывается как сума значений полей 
