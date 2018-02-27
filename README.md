@@ -1,5 +1,8 @@
 **System Health Monitor**
 
+[![Build Status](https://travis-ci.org/LCMApps/system-health-monitor.svg?branch=master)](https://travis-ci.org/LCMApps/system-health-monitor)
+[![Coverage Status](https://coveralls.io/repos/github/LCMApps/system-health-monitor/badge.svg?branch=master)](https://coveralls.io/github/LCMApps/system-health-monitor?branch=master)
+
 Модуль контроллирует загруженность сервера на котором запущен с определенным интервалом (задается в конфиге).
 
 **Создание нового инстанса**
