@@ -1,8 +1,8 @@
 # System Health Monitor for node
 
+[![NPM version](https://img.shields.io/npm/v/system-health-monitor.svg)](https://www.npmjs.com/package/system-health-monitor)
 [![Build Status](https://travis-ci.org/LCMApps/system-health-monitor.svg?branch=master)](https://travis-ci.org/LCMApps/system-health-monitor)
 [![Coverage Status](https://coveralls.io/repos/github/LCMApps/system-health-monitor/badge.svg?branch=master)](https://coveralls.io/github/LCMApps/system-health-monitor?branch=master)
-
 
 Module allows controlling CPU and memory usage of the Linux host it runs on. It may be configured for:
 * usage of the different strategies of CPU monitoring: simple last value or
