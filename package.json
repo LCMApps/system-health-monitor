@@ -13,7 +13,8 @@
     "type": "git",
     "url": "https://github.com/LCMApps/system-health-monitor.git"
   },
-  "license": "SEE LICENSE IN LICENSE.md",
+  "keywords": ["health", "status", "monitor", "healthcheck", "cpu", "mem", "usage", "memory", "utilization"],
+  "license": "MIT",
   "engines": {
     "node": ">=8.1"
   },
@@ -24,5 +25,9 @@
     "istanbul": "^1.1.0-alpha.1",
     "mocha": "^3.4.2",
     "sinon": "^2.3.4"
-  }
+  },
+  "bugs": {
+    "url": "https://github.com/LCMApps/system-health-monitor/issues"
+  },
+  "homepage": "https://github.com/LCMApps/system-health-monitor"
 }
