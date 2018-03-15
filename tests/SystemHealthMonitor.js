@@ -12,7 +12,7 @@ const meminfoMock = fs.readFileSync('./tests/meminfoMock.txt', 'utf8');
 describe('SystemHealthMonitor', () => {
     describe('SystemHealthMonitor methods tests', () => {
         let checkerConf = {
-            checkInterval: 15000,
+            checkIntervalMsec: 15000,
             mem:           {
                 thresholdType: 'none',
                 minFree:       1024,
@@ -45,7 +45,7 @@ describe('SystemHealthMonitor', () => {
             assert.isTrue(determineHealthIndicatorsSpy.calledOnce);
             assert.isTrue(determineHealthIndicatorsSpy.calledWithExactly());
             assert.equal(actualSchedulerClass, expectedSchedulerClass);
-            assert.equal(systemMonitor._healthScheduler._repeat, checkerConf.checkInterval);
+            assert.equal(systemMonitor._healthScheduler._repeat, checkerConf.checkIntervalMsec);
         });
 
         it('SystemHealthMonitor second start call throw error', async () => {
