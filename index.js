@@ -29,12 +29,12 @@ class SystemHealthMonitor {
         return 2;
     }
 
-    constructor({checkInterval, mem, cpu}) {
-        if (!Number.isSafeInteger(checkInterval) || checkInterval < 1) {
-            throw new Error('field `checkInterval` is required must be an integer and more than 1');
+    constructor({checkIntervalMsec, mem, cpu}) {
+        if (!Number.isSafeInteger(checkIntervalMsec) || checkIntervalMsec < 1) {
+            throw new Error('field "checkIntervalMsec" is required must be an integer and more than 1');
         }
 
-        this._checkInterval = checkInterval;
+        this._checkIntervalMsec = checkIntervalMsec;
 
         this._isMemOverloaded    = undefined;
         this._isCpuOverloaded    = undefined;
@@ -63,7 +63,7 @@ class SystemHealthMonitor {
 
         await this._determineHealthIndicators();
 
-        this._healthScheduler = setInterval(this._determineHealthIndicators, this._checkInterval);
+        this._healthScheduler = setInterval(this._determineHealthIndicators, this._checkIntervalMsec);
         this._status          = SystemHealthMonitor.STATUS_STARTED;
     }
 
@@ -215,12 +215,12 @@ class SystemHealthMonitor {
 
     _initMemChecks(mem) {
         if (typeof mem !== 'object') {
-            throw new Error('field `mem` is required and must be an object');
+            throw new Error('field "mem" is required and must be an object');
         }
 
         if (mem.thresholdType === 'fixed') {
             if (mem.minFree === undefined || !Number.isSafeInteger(mem.minFree) || mem.minFree <= 0) {
-                throw new Error('mem.minFree field is required for threshold = fixed and must be more then 0');
+                throw new Error('"mem.minFree" field is required for threshold = fixed and must be more then 0');
             }
 
             this._isMemOverloaded = this._isMemOverloadedByFixedThreshold.bind(this, mem.minFree);
@@ -228,43 +228,47 @@ class SystemHealthMonitor {
             if (mem.highWatermark === undefined || !Number.isFinite(mem.highWatermark) ||
                 mem.highWatermark <= 0 || mem.highWatermark >= 1) {
 
-                throw new Error('mem.highWatermark field is required for threshold = rate and must be in range (0;1)');
+                throw new Error(
+                    '"mem.highWatermark" field is required for threshold = rate and must be in range (0;1)'
+                );
             }
 
             this._isMemOverloaded = this._isMemOverloadedByRateThreshold.bind(this, mem.highWatermark);
         } else if (mem.thresholdType === 'none') {
             this._isMemOverloaded = this._isMemOverloadedByIncorrectData.bind(this);
         } else {
-            throw new Error('mem.thresholdType is not set or has invalid type');
+            throw new Error('"mem.thresholdType" is not set or has invalid type');
         }
     }
 
     _initCpuChecks(cpu) {
         if (typeof cpu !== 'object') {
-            throw new Error('field `cpu` is required and must be an object');
+            throw new Error('field "cpu" is required and must be an object');
         }
 
         if (cpu.calculationAlgo === 'sma') {
             if (!Number.isSafeInteger(cpu.periodPoints) || cpu.periodPoints < 1) {
-                throw new Error('cpu.periodPoints field is required for SMA algorithm and must be more than 0');
+                throw new Error('"cpu.periodPoints" field is required for SMA algorithm and must be more than 0');
             }
             this._cpuUsageCalculator = new CpuUsageSma(cpu.periodPoints);
         } else if (cpu.calculationAlgo === 'last_value') {
             this._cpuUsageCalculator = new CpuUsage();
         } else {
-            throw new Error('cpu.calculationAlgo is not set or has invalid type');
+            throw new Error('"cpu.calculationAlgo" is not set or has invalid type');
         }
 
         if (cpu.thresholdType === 'rate') {
             if (!cpu.highWatermark || !Number.isFinite(cpu.highWatermark) || cpu.highWatermark > 1) {
-                throw new Error('cpu.highWatermark field is required for threshold = rate and must be in range (0,1]');
+                throw new Error(
+                    '"cpu.highWatermark" field is required for threshold = rate and must be in range (0,1]'
+                );
             }
 
             this._isCpuOverloaded = this._isCpuOverloadByRateThreshold.bind(this, cpu.highWatermark);
         } else if (cpu.thresholdType === 'none') {
             this._isCpuOverloaded = () => false;
         } else {
-            throw new Error('cpu.thresholdType is not set or has invalid type');
+            throw new Error('"cpu.thresholdType" is not set or has invalid type');
         }
     }
 }

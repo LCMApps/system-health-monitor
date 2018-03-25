@@ -43,7 +43,7 @@ cover overload checks.
 const SystemHealthMonitor = require('system-health-monitor');
 
 const monitorConfig = {
-    checkInterval: 1,
+    checkIntervalMsec: 1000,
     mem: {
         thresholdType: 'none'
     },
@@ -64,7 +64,7 @@ monitor.start()
 });
 ```
 
-This simple example checks system info every second (`checkInterval` option) and provides information about the
+This simple example checks system info every second (`checkIntervalMsec` option) and provides information about the
 current amount of free memory, total amount of memory, CPU usage (avg by cores) and amount of available cores.
 
 To collect all the data described above you may use the following methods:
@@ -101,7 +101,7 @@ overloaded and `monitor.isOverloaded()` returns `true`.
 The following configuration will mark the system as overloaded when amount of free memory becomes less then 100 Mbytes:
 ```js
 const monitorConfig = {
-    checkInterval: 1,
+    checkIntervalMsec: 1000,
     mem: {
         thresholdType: 'fixed',
         minFree: 100
@@ -122,7 +122,7 @@ alive, but with `mem.highWatermark == 0.7` it is considered overloaded.
 The following configuration will mark the system as overloaded when the usage ratio becomes more than 0.8:
 ```js
 const monitorConfig = {
-    checkInterval: 1,
+    checkIntervalMsec: 1000,
     mem: {
         thresholdType: 'rate',
         highWatermark: 0.8
@@ -138,7 +138,7 @@ const monitorConfig = {
 
 
 Utilization of core over period is a result of division of the time the core was running user or kernel processes
-by amount of elapsed time between sequential checks during the period (controlled by `checkInterval` option).
+by amount of elapsed time between sequential checks during the period (controlled by `checkIntervalMsec` option).
 The average utilization is an arithmetical mean of utilization values of all available cores.
 
 For example: for a host with 4 CPU cores available and values of utilization between two
@@ -161,7 +161,7 @@ processes, and prevents from marking itself as overloaded.
 Example of config with `cpu.calculationAlgo = 'last_value'`:
 ```js
 const monitorConfig = {
-    checkInterval: 1,
+    checkIntervalMsec: 1000,
     mem: {
         thresholdType: 'rate',
         highWatermark: 0.8
@@ -179,7 +179,7 @@ If avg utilization for a 1 second becomes greater than 80% the service will be m
 Example of config with `cpu.calculationAlgo = 'sma'`:
 ```js
 const monitorConfig = {
-    checkInterval: 1,
+    checkIntervalMsec: 1000,
     mem: {
         thresholdType: 'rate',
         highWatermark: 0.8
@@ -196,7 +196,7 @@ const monitorConfig = {
 If avg utilization for a 1 second becomes greater than 80%, but lower than 80% for the next 4 seconds, the moving
 average becomes less than 80% and the service will not be marked as overloaded.
 
-**_Note!_** With `sma` strategy service stays overloaded for `checkInterval * cpu.periodPoints` and
+**_Note!_** With `sma` strategy service stays overloaded for `checkIntervalMsec * cpu.periodPoints` milliseconds and
 `monitor.getCpuUsage()` returns `100`. That's because the monitor has no data for sequential `cpu.periodPoints` periods.
 
 # <a name="mem-checks-details"></a>How Does the Service Run Memory Checks?
@@ -265,8 +265,8 @@ Using the values above we may calculate `work` that is all work that cores have 
 
 On the other hand, useful load is `busy` = `user + nice + system` (without idle).
 
-Let's consider that `checkInterval` is 1 second. To calculate avg usage for one-second-long period of time
-we need to calculate the current value and the value 1 second ago.
+Let's consider that `checkIntervalMsec` is 1000 ms. To calculate avg usage for one-second-long period of time
+we need to calculate the current value and the value 1000 ms ago.
 `usage` = `100.0 * (busy - prevBusy) / (work - prevWork)`. 
 
 `monitor.getCpuUsage()` returns `usage` value for `last_value` strategy.
