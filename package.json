@@ -24,7 +24,7 @@
     "eslint": "^4.0.0",
     "istanbul": "^1.1.0-alpha.1",
     "mocha": "^3.4.2",
-    "sinon": "^2.3.4"
+    "sinon": "^7.2.4"
   },
   "bugs": {
     "url": "https://github.com/LCMApps/system-health-monitor/issues"
