@@ -213,7 +213,10 @@ Swap:          512        422         89
 ```
 
 Total memory is 6144 MB and free memory is a value of `total - used + buffers + cached`. In this example, there's
-5219 MB free memory.
+5219 MB free memory. 
+In `/proc/meminfo` file total memory is the value of `MemTotal` field. Free memory calculated as the sum of fields
+`MemFree`, `Buffers`, `Cached` and `SReclaimable`. `SReclaimable` - The part of RAM used by the kernel to cache data 
+structures for its own use, and can be reclaimed, such as caches.
 
 Total amount of memory may change between calls in virtual environments.
 
