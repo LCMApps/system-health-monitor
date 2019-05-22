@@ -36,6 +36,7 @@ describe('SystemHealthMonitor', () => {
 
         it('SystemHealthMonitor start successfully', async () => {
             const determineHealthIndicatorsSpy = sinon.spy(systemMonitor, '_determineHealthIndicators');
+            const setIntervalSpy = sinon.spy(global, 'setInterval');
 
             await systemMonitor.start();
 
@@ -45,14 +46,19 @@ describe('SystemHealthMonitor', () => {
             assert.isTrue(determineHealthIndicatorsSpy.calledOnce);
             assert.isTrue(determineHealthIndicatorsSpy.calledWithExactly());
             assert.equal(actualSchedulerClass, expectedSchedulerClass);
-            assert.equal(systemMonitor._healthScheduler._repeat, checkerConf.checkIntervalMsec);
+            assert.isTrue(setIntervalSpy.calledOnce);
+            assert.isTrue(setIntervalSpy.calledWithExactly(
+                systemMonitor._determineHealthIndicators,
+                checkerConf.checkIntervalMsec
+            ));
+
+            clearInterval(systemMonitor._healthScheduler);
         });
 
         it('SystemHealthMonitor second start call throw error', async () => {
             const determineHealthIndicatorsSpy = sinon.stub(systemMonitor, '_determineHealthIndicators');
 
             await systemMonitor.start();
-
 
             try {
                 await systemMonitor.start();
@@ -67,10 +73,13 @@ describe('SystemHealthMonitor', () => {
                 assert.isTrue(determineHealthIndicatorsSpy.calledWithExactly());
                 assert.equal(actualSchedulerClass, expectedSchedulerClass);
             }
+
+            clearInterval(systemMonitor._healthScheduler);
         });
 
         it('SystemHealthMonitor stop scheduler', async () => {
             const determineHealthIndicatorsSpy = sinon.stub(systemMonitor, '_determineHealthIndicators');
+            const clearIntervalSpy = sinon.spy(global, 'clearInterval');
 
             await systemMonitor.start();
             systemMonitor.stop();
@@ -78,11 +87,15 @@ describe('SystemHealthMonitor', () => {
             assert.isTrue(determineHealthIndicatorsSpy.calledOnce);
             assert.isTrue(determineHealthIndicatorsSpy.calledWithExactly());
             assert.equal(systemMonitor._status, SystemHealthMonitor.STATUS_STOPPED);
-            assert.equal(systemMonitor._healthScheduler._repeat, null);
+            assert.isTrue(clearIntervalSpy.calledOnce);
+            assert.isTrue(clearIntervalSpy.calledWithExactly(systemMonitor._healthScheduler));
+
+            clearIntervalSpy.restore();
         });
 
         it('SystemHealthMonitor second stop call throw error', async () => {
             const determineHealthIndicatorsSpy = sinon.stub(systemMonitor, '_determineHealthIndicators');
+            const clearIntervalSpy = sinon.spy(global, 'clearInterval');
 
             await systemMonitor.start();
             systemMonitor.stop();
@@ -94,7 +107,10 @@ describe('SystemHealthMonitor', () => {
             assert.isTrue(determineHealthIndicatorsSpy.calledOnce);
             assert.isTrue(determineHealthIndicatorsSpy.calledWithExactly());
             assert.equal(systemMonitor._status, SystemHealthMonitor.STATUS_STOPPED);
-            assert.equal(systemMonitor._healthScheduler._repeat, null);
+            assert.isTrue(clearIntervalSpy.calledOnce);
+            assert.isTrue(clearIntervalSpy.calledWithExactly(systemMonitor._healthScheduler));
+
+            clearIntervalSpy.restore();
         });
 
         const publicInfoMethods = ['getMemTotal', 'getMemFree', 'getCpuCount', 'getCpuUsage', 'isOverloaded'];
@@ -109,7 +125,7 @@ describe('SystemHealthMonitor', () => {
 
         it('Parse data from /proc/meminfo and calculate free and total memory indicators', async () => {
             const expectedMemTotal = 7879;
-            const expectedMemFree  = 4127;
+            const expectedMemFree  = 4371;
 
             const readMeminfoFileStub = sinon.stub(systemMonitor, '_readMeminfoFile');
 

@@ -7,7 +7,7 @@ const promisify = require('util').promisify;
 const CpuUsage    = require('./lib/CpuUsage');
 const CpuUsageSma = require('./lib/CpuUsageSma');
 
-const readFileSync  = promisify(fs.readFile);
+const readFileAsync  = promisify(fs.readFile);
 const MB_MULTIPLIER = 1024;
 const MEMINFO_PATH = '/proc/meminfo';
 
@@ -119,7 +119,7 @@ class SystemHealthMonitor {
 
     /* istanbul ignore next */
     async _readMeminfoFile() {
-        return await readFileSync(MEMINFO_PATH, 'utf8');
+        return await readFileAsync(MEMINFO_PATH, 'utf8');
     }
     /**
      * For /proc/meminfo doc see: https://www.centos.org/docs/5/html/5.1/Deployment_Guide/s2-proc-meminfo.html
@@ -127,7 +127,7 @@ class SystemHealthMonitor {
      */
     async _getMemInfo() {
         let memFree           = 0;
-        let indicatorsCounter = 4;
+        let indicatorsCounter = 5;
         let memInfo           = undefined;
 
         try {
@@ -145,7 +145,7 @@ class SystemHealthMonitor {
                 continue;
             }
 
-            if (line.includes('MemFree:') || line.includes('Buffers:') || line.includes('Cached:')) {
+            if (/(^MemFree|^Buffers|^Cached|^SReclaimable):/.test(line)) {
                 memFree += parseInt(getSizeFromMeminfoRow(line));
                 indicatorsCounter--;
                 continue;
