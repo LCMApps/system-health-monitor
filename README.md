@@ -1,6 +1,7 @@
 # System Health Monitor for node
 
 [![NPM version](https://img.shields.io/npm/v/system-health-monitor.svg)](https://www.npmjs.com/package/system-health-monitor)
+[![Release Status](https://github.com/LCMApps/system-health-monitor/workflows/NPM%20Release/badge.svg)](https://github.com/LCMApps/system-health-monitor/releases)
 [![Build Status](https://travis-ci.org/LCMApps/system-health-monitor.svg?branch=master)](https://travis-ci.org/LCMApps/system-health-monitor)
 [![Coverage Status](https://coveralls.io/repos/github/LCMApps/system-health-monitor/badge.svg?branch=master)](https://coveralls.io/github/LCMApps/system-health-monitor?branch=master)
 

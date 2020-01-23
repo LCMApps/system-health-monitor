@@ -1,6 +1,6 @@
 {
   "name": "system-health-monitor",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "This module implements service that check RAM and CPU characteristics and decides according to passed config that instance is overloaded",
   "main": "index.js",
   "scripts": {
@@ -13,7 +13,17 @@
     "type": "git",
     "url": "https://github.com/LCMApps/system-health-monitor.git"
   },
-  "keywords": ["health", "status", "monitor", "healthcheck", "cpu", "mem", "usage", "memory", "utilization"],
+  "keywords": [
+    "health",
+    "status",
+    "monitor",
+    "healthcheck",
+    "cpu",
+    "mem",
+    "usage",
+    "memory",
+    "utilization"
+  ],
   "license": "MIT",
   "engines": {
     "node": ">=8.1"
